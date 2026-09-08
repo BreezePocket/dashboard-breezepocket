@@ -7,7 +7,7 @@ export const CHAINS: Record<ChainId, { name: string; icon: string }> = {
   101: { name: 'Solana', icon: '/icons/solana.svg' },
 }
 
-export const iconFor = (symbol: string) => `/icons/${symbol.toLowerCase()}.svg`
+export const iconFor = (symbol: string) => (symbol === 'PAXG' ? '/icons/paxg.png' : `/icons/${symbol.toLowerCase()}.svg`)
 
 /** Reference asset + placeholder spot price for each collateral token. */
 const UNDERLYING: Record<string, { name: string; spot: number }> = {
@@ -19,6 +19,9 @@ const UNDERLYING: Record<string, { name: string; spot: number }> = {
   JUP: { name: 'JUP', spot: 0.92 },
   PYTH: { name: 'PYTH', spot: 0.31 },
   RAY: { name: 'RAY', spot: 3.24 },
+  PAXG: { name: 'PAXG', spot: 3_641 },
+  TSLAon: { name: 'TSLA', spot: 345.2 },
+  HYNIXon: { name: 'SK Hynix', spot: 182.4 },
 }
 export const underlyingOf = (asset: string) => UNDERLYING[asset] ?? { name: asset, spot: 100 }
 

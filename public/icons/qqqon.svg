@@ -1,0 +1,6 @@
+<svg width="250" height="250" viewBox="0 0 250 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="125" cy="125" r="125" fill="#E4D5F5"/>
+  <rect x="32" y="32" width="186" height="186" rx="46" fill="#3D0E52"/>
+  <path d="M58 152 L80 126 L87 132 L100 106 L108 114 L124 74 L133 92 L128 97 L139 90 L147 104 L142 109 L154 120 L149 123 L166 143 L175 152 Z" fill="#FFFFFF"/>
+  <text x="125" y="196" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#FFFFFF">Invesco</text>
+</svg>
