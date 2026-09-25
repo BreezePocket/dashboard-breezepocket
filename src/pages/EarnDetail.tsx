@@ -14,7 +14,7 @@ import {
   collateralOf, priceSource, productForType, productLabel, randomNonce,
   type Board, type BoardCell, type DeskExpiry, type FaucetInfo, type Product, type Quote,
 } from '../lib/mm'
-import { buildOpenPositionTx, openedPositionPda, usdcToBase, priceToBase, baseToUsdc, toUnits, fromUnits } from '../lib/program'
+import { buildOpenPositionTx, openedPositionPda, usdcToBase, priceToBase, baseToUsdc, fromUnits } from '../lib/program'
 import { explorerAddr, explorerTx } from '../lib/config'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -237,9 +237,11 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   }, [now, flow, requestQuote])
 
   const quote = flow.step === 'quoted' ? flow.quote : null
-  const yieldHuman = quote
-    ? product === 'sell_sol' ? toUnits(BigInt(quote.yield_amount), decimals) : baseToUsdc(BigInt(quote.yield_amount))
-    : cell ? (cell.yield_pct / 100) * qty : null
+  // The upfront yield is paid in USDC for both strategies. Indicatively, a Sell yield_pct
+  // is a share of the locked asset's value at spot; a Buy yield_pct a share of the USDC locked.
+  const yieldUsdc = quote
+    ? baseToUsdc(BigInt(quote.yield_amount))
+    : cell ? (cell.yield_pct / 100) * (product === 'sell_sol' ? (spot !== null ? qty * spot : NaN) : qty) : null
   const apr = quote?.apr_pct ?? cell?.apr_pct ?? null
   const ttl = quote ? Math.max(0, Math.ceil((quote.valid_until - now) / 1000)) : null
   const balance = product === 'sell_sol' ? (isSol ? balances.sol : balances.asset) : balances.usdc
@@ -399,8 +401,8 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
               <div className="payoff-apr">
                 <span><span className="big">{apr !== null ? `${apr.toFixed(2)}%` : '--'}</span> APR</span>
                 <span>
-                  {yieldHuman !== null && qty > 0
-                    ? `${fmtNum(yieldHuman, product === 'sell_sol' ? (isSol ? 6 : 8) : 2)} ${collateral} upfront${quote ? '' : ' (indicative)'}`
+                  {yieldUsdc !== null && Number.isFinite(yieldUsdc) && qty > 0
+                    ? `${fmtNum(yieldUsdc)} USDC upfront${quote ? '' : ' (indicative)'}`
                     : 'Select a price to see your premium'}
                 </span>
                 {quote && (
@@ -537,8 +539,8 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
   const collateral = type === 'call' ? asset : 'USDC'
   // The board prices a fixed size: 1 unit of the asset (9 decimals) for calls, 100 USDC for puts.
   const size = board ? (product === 'sell_sol' ? Number(board.amount) / 1e9 : Number(board.amount) / 1e6) : product === 'sell_sol' ? 1 : 100
-  const premium = cell ? (product === 'sell_sol' ? Number(cell.yield_amount) / 1e9 : Number(cell.yield_amount) / 1e6) : null
-  const premiumUsd = premium !== null ? (product === 'sell_sol' && spot ? premium * spot : premium) : null
+  // Paid in USDC (6 decimals) for both strategies.
+  const premium = cell ? Number(cell.yield_amount) / 1e6 : null
   const label = expiryTs ? expiryShort(expiryTs) : '…'
 
   return (
@@ -599,8 +601,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                 <span><span className="big">{cell ? `${cell.apr_pct.toFixed(2)}%` : '--'}</span> APR</span>
                 <span>
                   {premium !== null
-                    ? `${fmtNum(premium, product === 'sell_sol' ? 6 : 2)} ${collateral} upfront on ${fmtNum(size, 0)} ${collateral}` +
-                      (product === 'sell_sol' && premiumUsd !== null ? ` (≈ ${fmtPrice(premiumUsd)})` : '') + ' · indicative'
+                    ? `${fmtNum(premium)} USDC upfront on ${fmtNum(size, 0)} ${collateral} · indicative`
                     : 'Select a price to see the premium'}
                 </span>
                 {cell && <small className="quote-meta">{cell.instrument ?? sourceLabel(cell.price_source)} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${board.fee_pct}%` : ''}</small>}

@@ -22,11 +22,27 @@ const COLS = ['Asset', 'Chain', 'Type', 'Maturity', 'Size', 'Notional', 'Strike'
 
 const dateShort = (ts: number) => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const notionalUsd = (p: PositionRow) => (p.product === 'sell_sol' ? toUnits(p.userCollateral, p.decimals) * (Number(p.fixedPrice) / 1e6) : baseToUsdc(p.userCollateral))
-/** Sell positions lock and earn the asset (SOL or a listed token); buy positions lock and earn USDC. */
+/** Sell positions lock the asset (SOL or a listed token); buy positions lock USDC. */
 const legSymbol = (p: PositionRow) => (p.product === 'sell_sol' ? p.symbol : 'USDC')
 const legAmount = (p: PositionRow, n: bigint) => (p.product === 'sell_sol' ? toUnits(n, p.decimals) : baseToUsdc(n))
 const legDigits = (p: PositionRow) => (p.product === 'sell_sol' ? (p.symbol === 'SOL' ? 4 : 6) : 2)
-const yieldPct = (p: PositionRow) => (Number(p.yieldAmount) / Number(p.userCollateral)) * 100
+/**
+ * Sell positions opened before the 2026-09-26 program upgrade were paid their yield in the
+ * locked asset; every position since is paid in USDC. The account does not record which,
+ * so the devnet positions from before the upgrade are listed here.
+ */
+const ASSET_YIELD_POSITIONS = new Set([
+  '6ecgM88jqy3s1nSS4JmN8EL6QN9Kqn7F2sYs7gnvtY82',
+  'BvoVVjgqZSVjXKju2aeLCMui6Ypk5yr6jjbBP94xCrtb',
+  'CrH6mcPLrwfXUXV5yUsVAU9sRZfMvRYc1bjGdkGYbuZV',
+  '5DDpHnTq3xfPE3X9jZ1DHB1ewT78FsttjcRsM38cCyoH',
+])
+const yieldInAsset = (p: PositionRow) => p.product === 'sell_sol' && ASSET_YIELD_POSITIONS.has(p.address.toBase58())
+const yieldSymbol = (p: PositionRow) => (yieldInAsset(p) ? p.symbol : 'USDC')
+const yieldAmount = (p: PositionRow) => (yieldInAsset(p) ? toUnits(p.yieldAmount, p.decimals) : baseToUsdc(p.yieldAmount))
+/** Yield as a share of what was locked: the collateral itself when paid in kind, its notional at the target price when paid in USDC. */
+const yieldPct = (p: PositionRow) =>
+  yieldInAsset(p) ? (Number(p.yieldAmount) / Number(p.userCollateral)) * 100 : (baseToUsdc(p.yieldAmount) / notionalUsd(p)) * 100
 
 type Outcome = { label: string; tone: 'open' | 'kept' | 'exchanged' | 'settled' | 'wait'; settleable: boolean }
 function outcomeOf(p: PositionRow, price: SettlementPriceRow | null | undefined, nowTs: number): Outcome {
@@ -71,16 +87,19 @@ export default function Dashboard() {
     // Yield and locked amounts in other listed assets are kept per symbol.
     const t = { yieldSol: 0, yieldUsdc: 0, lockedSol: 0, lockedUsdc: 0, notional: 0, yieldAssets: {} as Record<string, number> }
     for (const p of positions) {
-      if (p.product === 'sell_sol' && p.symbol === 'SOL') { t.yieldSol += lamportsToSol(p.yieldAmount); if (!p.settled) t.lockedSol += lamportsToSol(p.userCollateral) }
-      else if (p.product === 'sell_sol') t.yieldAssets[p.symbol] = (t.yieldAssets[p.symbol] ?? 0) + toUnits(p.yieldAmount, p.decimals)
-      else { t.yieldUsdc += baseToUsdc(p.yieldAmount); if (!p.settled) t.lockedUsdc += baseToUsdc(p.userCollateral) }
+      if (!yieldInAsset(p)) t.yieldUsdc += baseToUsdc(p.yieldAmount)
+      else if (p.symbol === 'SOL') t.yieldSol += lamportsToSol(p.yieldAmount)
+      else t.yieldAssets[p.symbol] = (t.yieldAssets[p.symbol] ?? 0) + toUnits(p.yieldAmount, p.decimals)
+      if (!p.settled && p.product === 'sell_sol' && p.symbol === 'SOL') t.lockedSol += lamportsToSol(p.userCollateral)
+      if (!p.settled && p.product === 'buy_sol') t.lockedUsdc += baseToUsdc(p.userCollateral)
       if (!p.settled) t.notional += notionalUsd(p)
     }
     return t
   }, [positions])
   const assetYieldUsd = Object.entries(totals.yieldAssets).map(([sym, n]) => { const px = spotOf(sym); return px === null ? null : n * px })
-  const incomeUsd = spot && assetYieldUsd.every((v) => v !== null)
-    ? totals.yieldSol * spot + totals.yieldUsdc + assetYieldUsd.reduce<number>((a, v) => a + (v ?? 0), 0)
+  // Only yield paid in SOL or another asset needs a live price to count in dollars.
+  const incomeUsd = (totals.yieldSol === 0 || spot) && assetYieldUsd.every((v) => v !== null)
+    ? totals.yieldSol * (spot ?? 0) + totals.yieldUsdc + assetYieldUsd.reduce<number>((a, v) => a + (v ?? 0), 0)
     : null
 
   const byExpiry = useMemo(() => {
@@ -118,8 +137,8 @@ export default function Dashboard() {
             <div className="dash-income">
               <div className="dash-big">{incomeUsd !== null ? `$${fmtNum(incomeUsd)}` : '—'}<small>yield received upfront</small></div>
               <div className="dash-split">
-                <div><img src={iconFor('SOL')} alt="" /><b>{fmtNum(totals.yieldSol, 6)}</b> SOL</div>
                 <div><img src={iconFor('USDC')} alt="" /><b>{fmtNum(totals.yieldUsdc)}</b> USDC</div>
+                {totals.yieldSol > 0 && <div><img src={iconFor('SOL')} alt="" /><b>{fmtNum(totals.yieldSol, 6)}</b> SOL</div>}
                 {Object.entries(totals.yieldAssets).map(([sym, n]) => (
                   <div key={sym}><img src={iconFor(sym)} alt="" /><b>{fmtNum(n, 6)}</b> {sym}</div>
                 ))}
@@ -182,7 +201,7 @@ export default function Dashboard() {
                 const price = prices[priceKey(p)]
                 const o = outcomeOf(p, price, nowTs)
                 const coll = `${fmtNum(legAmount(p, p.userCollateral), legDigits(p))} ${legSymbol(p)}`
-                const income = `${fmtNum(legAmount(p, p.yieldAmount), p.product === 'sell_sol' ? 6 : 2)} ${legSymbol(p)}`
+                const income = `${fmtNum(yieldAmount(p), yieldInAsset(p) ? 6 : 2)} ${yieldSymbol(p)}`
                 const live = spotOf(p.symbol)
                 return (
                   <ul className="tbl-row" key={p.address.toBase58()}>

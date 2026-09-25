@@ -30,7 +30,7 @@ PAYtience keeps what the strategy does and drops the complexity around it:
 
 | You say | Under the hood | You get |
 | --- | --- | --- |
-| **Sell High:** "I'd sell my SOL at $250 by Friday" | Covered call | Yield paid in SOL, now |
+| **Sell High:** "I'd sell my SOL at $250 by Friday" | Covered call | Yield paid in USDC, now |
 | **Buy Low:** "I'd buy SOL at $180 by Friday" | Cash-secured put | Yield paid in USDC, now |
 
 - **Upfront yield.** You're paid when you sign, not at the end of an epoch.

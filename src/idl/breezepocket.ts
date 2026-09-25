@@ -3720,7 +3720,7 @@ export type Breezepocket = {
           {
             "name": "yieldAmount",
             "docs": [
-              "Yield paid upfront to the user, in the same token as the collateral."
+              "Yield paid upfront to the user, in USDC base units for both products."
             ],
             "type": "u64"
           },
