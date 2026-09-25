@@ -170,11 +170,7 @@ export default function Earn() {
                             <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: not listed on the devnet program yet.`}>QUOTE</span>
                           )}
                           {soon && <span className="tag-soon">SOON</span>}
-                          {isPreStocks(m.asset) ? (
-                            <span className="tag-rwa" title="Tokenized pre-IPO shares issued by PreStocks">PRE-IPO</span>
-                          ) : (
-                            isRwa(m.asset) && <span className="tag-rwa">RWA</span>
-                          )}
+                          {isPreStocks(m.asset) && <span className="tag-rwa" title="Tokenized pre-IPO shares issued by PreStocks">PRE-IPO</span>}
                         </span>
                         <small>{assetName(m.asset)}</small>
                       </div>

@@ -410,7 +410,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 </span>
                 {quote && (
                   <small className="quote-meta">
-                    Binding quote · {quote.instrument ?? quote.price_source} · desk fee {quote.fee_pct ?? '—'}% · valid {ttl}s
+                    Binding quote · {quote.instrument ?? quote.price_source} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
                   </small>
                 )}
               </div>
@@ -608,7 +608,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                       (product === 'sell_sol' && premiumUsd !== null ? ` (≈ ${fmtPrice(premiumUsd)})` : '') + ' · indicative'
                     : 'Select a price to see the premium'}
                 </span>
-                {cell && <small className="quote-meta">{cell.instrument ?? cell.price_source} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · desk fee ${board.fee_pct}%` : ''}</small>}
+                {cell && <small className="quote-meta">{cell.instrument ?? cell.price_source} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${board.fee_pct}%` : ''}</small>}
               </div>
               <ul className="payoff-legend" aria-hidden="true">
                 {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}
