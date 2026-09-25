@@ -166,7 +166,6 @@ export default function Earn() {
                       <div className="asset-id">
                         <span className="asset-tick">
                           <b>{m.asset}</b>
-                          {m.state === 'live' && <span className="tag-live" title="Quoted live by the market maker and tradable on Solana devnet">LIVE</span>}
                           {m.state === 'quote' && (
                             <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: not listed on the devnet program yet.`}>QUOTE</span>
                           )}
