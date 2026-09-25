@@ -17,8 +17,8 @@ type Row = Market & { state: State; underlying: string | null; venue: string | n
 const STATE_ORDER: Record<State, number> = { live: 0, quote: 1, soon: 2 }
 
 const TABS = [
-  { id: 'call' as Tab, label: 'covered calls' },
-  { id: 'put' as Tab, label: 'cash secured puts' },
+  { id: 'call' as Tab, label: 'sell high' },
+  { id: 'put' as Tab, label: 'buy low' },
 ]
 const CLASSES: { id: AssetClass; label: string }[] = [
   { id: 'all', label: 'all assets' },
@@ -166,7 +166,7 @@ export default function Earn() {
                     </div>
                   </li>
                   <li className="tbl-c"><div className="chain"><img src={chain.icon} alt={`The icon for ${chain.name}`} /><span>{chain.name}</span></div></li>
-                  <li className="tbl-c end">{tab === 'call' ? 'Covered call' : 'Cash secured put'}</li>
+                  <li className="tbl-c end">{tab === 'call' ? 'Sell high' : 'Buy low'}</li>
                   <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.maxApr)}</span></li>
                   <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.minApr)}</span></li>
                   <li className="tbl-c end">

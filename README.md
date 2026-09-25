@@ -1,12 +1,12 @@
 # BreezePocket
 
-Options-income front end for Solana: sell covered calls or cash-secured puts on SOL, liquid staking tokens, bridged BTC/ETH and ecosystem tokens, and earn the premium upfront. Built with Vite, React, TypeScript, React Router and the Solana wallet adapter.
+Options-income front end for Solana: Sell High or Buy Low on SOL, liquid staking tokens, bridged BTC/ETH and ecosystem tokens, and earn the premium upfront. Built with Vite, React, TypeScript, React Router and the Solana wallet adapter.
 
 ## Routes
 
 | Path | What it shows |
 | --- | --- |
-| `/` | Earn: asset table with covered-call and cash-secured-put tabs, sortable columns, capacity bar |
+| `/` | Earn: asset table with Sell High and Buy Low tabs, sortable columns, capacity bar |
 | `/earn?asset=…&type=call\|put` | Strike picker, deposit amount, upfront-premium preview and payoff summary |
 | `/vaults` | Thesis Vaults: featured PAXG banner plus vault cards |
 | `/vault/:id` | Vault detail (paxg, tsla, hynix): stats, thesis, fees, epoch history, deposit/withdraw panel |
@@ -25,7 +25,7 @@ The app is wired to the breezepocket Anchor program and its house market maker:
 | Test USDC mint | `GxSfF7CfT3C2Sr7RYFwXoRHmhFeH4DpUVQCDNiktxEFD` |
 | Market maker | `../MM-system/breezepocket-mm`, REST on port 8787 |
 
-Live markets are **SOL covered calls** (Sell SOL) and **SOL cash-secured puts** (Buy SOL); every other row on the Earn page is a roadmap placeholder marked SOON.
+Live markets are **SOL Sell High** (Sell SOL) and **SOL Buy Low** (Buy SOL); every other row on the Earn page is a roadmap placeholder marked SOON.
 
 **Data the frontend reads**
 

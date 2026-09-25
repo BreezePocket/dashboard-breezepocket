@@ -210,6 +210,6 @@ export const priceSource = (venue: string, underlying: string) =>
       ? `${underlying} listed options via Alpaca (indicative feed)`
       : `${underlying} (${venue})`
 
-export const productLabel = (p: Product) => (p === 'sell_sol' ? 'Covered call' : 'Cash secured put')
+export const productLabel = (p: Product) => (p === 'sell_sol' ? 'Sell high' : 'Buy low')
 export const productForType = (t: 'call' | 'put'): Product => (t === 'call' ? 'sell_sol' : 'buy_sol')
 export const collateralOf = (p: Product) => (p === 'sell_sol' ? 'SOL' : 'USDC')

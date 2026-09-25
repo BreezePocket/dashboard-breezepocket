@@ -21,7 +21,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Neutral - Bullish',
     apr: '8%',
     icon: iconFor('PAXG'),
-    body: 'An institutional-grade vault that runs a Biweekly automated covered call strategy on PAXG (Tokenized Gold). Depositors earn option premium yield and choose how to receive it — Compounding mode reinvests premiums into more PAXG to grow your position over time, while Income mode pays premiums out as a steady yield stream.',
+    body: 'An institutional-grade vault that runs a Biweekly automated Sell High strategy on PAXG (Tokenized Gold). Depositors earn option premium yield and choose how to receive it — Compounding mode reinvests premiums into more PAXG to grow your position over time, while Income mode pays premiums out as a steady yield stream.',
     bullets: [
       'Accumulate for the medium-long term as part of portfolio diversification.',
       'Generate “income” from Gold.',
@@ -36,7 +36,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Bullish',
     apr: 'TBA',
     icon: '/icons/reserve.svg',
-    body: "AI-powered vault for the assets the future saves in: Bitcoin's digital scarcity, gold's tokenized permanence, compute's productive power. It reads real-time volatility and directional price signals, entering covered call positions only at optimal sweet spots — maximizing yield, avoids sacrificing the explosive upside.",
+    body: "AI-powered vault for the assets the future saves in: Bitcoin's digital scarcity, gold's tokenized permanence, compute's productive power. It reads real-time volatility and directional price signals, entering Sell High positions only at optimal sweet spots — maximizing yield, avoids sacrificing the explosive upside.",
   },
   {
     id: 'qqqon',
@@ -54,7 +54,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Neutral - Bullish',
     apr: '14%',
     icon: iconFor('TSLAon'),
-    body: 'An institutional-grade vault that runs a Biweekly automated covered call strategy on TSLAon (Tokenized Tesla stock). Tesla carries some of the richest implied volatility among large caps, so depositors earn elevated option premium yield — Compounding mode reinvests premiums into more TSLAon, while Income mode pays premiums out as a steady yield stream.',
+    body: 'An institutional-grade vault that runs a Biweekly automated Sell High strategy on TSLAon (Tokenized Tesla stock). Tesla carries some of the richest implied volatility among large caps, so depositors earn elevated option premium yield — Compounding mode reinvests premiums into more TSLAon, while Income mode pays premiums out as a steady yield stream.',
     bullets: [
       'Monetize Tesla’s elevated volatility without selling your position.',
       'Generate income from tokenized equity exposure onchain.',
@@ -69,7 +69,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Bullish',
     apr: '12%',
     icon: iconFor('HYNIXon'),
-    body: 'A vault that runs a Biweekly automated covered call strategy on HYNIXon (Tokenized SK Hynix stock), the leading supplier of high-bandwidth memory for AI accelerators. Depositors earn option premium yield on top of their exposure to the AI memory supercycle, with Compounding or Income payout modes.',
+    body: 'A vault that runs a Biweekly automated Sell High strategy on HYNIXon (Tokenized SK Hynix stock), the leading supplier of high-bandwidth memory for AI accelerators. Depositors earn option premium yield on top of their exposure to the AI memory supercycle, with Compounding or Income payout modes.',
     bullets: [
       'Earn premium on the world’s leading HBM supplier.',
       'Income from the AI memory supercycle, settled onchain.',
@@ -84,7 +84,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Bullish',
     apr: 'TBA',
     icon: iconFor('NVDAon'),
-    body: 'A Biweekly automated covered call strategy on NVDAon (Tokenized NVIDIA stock). Strikes are set out-of-the-money to keep most of the upside of the leading AI compute franchise while harvesting its option premium as yield.',
+    body: 'A Biweekly automated Sell High strategy on NVDAon (Tokenized NVIDIA stock). Strikes are set out-of-the-money to keep most of the upside of the leading AI compute franchise while harvesting its option premium as yield.',
   },
   {
     id: 'spy',
@@ -102,7 +102,7 @@ const VAULTS: Vault[] = [
     sentiment: 'Neutral - Bullish',
     apr: 'TBA',
     icon: iconFor('XAGon'),
-    body: 'A Biweekly automated covered call strategy on XAGon (Tokenized Silver). Silver’s higher volatility relative to gold means richer premiums for depositors who are cautiously bullish on industrial and monetary demand for the metal.',
+    body: 'A Biweekly automated Sell High strategy on XAGon (Tokenized Silver). Silver’s higher volatility relative to gold means richer premiums for depositors who are cautiously bullish on industrial and monetary demand for the metal.',
   },
   {
     id: 'tbill',
@@ -161,7 +161,7 @@ export default function Vaults() {
             <div className="vbanner-kicker">Deposit anytime to join the next epoch</div>
             <h2>Earn yield on <img src={featured.icon} alt="" /> PAXG</h2>
             <p className="vbanner-lead">
-              Cautiously bullish on gold? Let option premium cushion your downside with low delta, out-of-the-money covered calls – and keep most of the upside.
+              Cautiously bullish on gold? Let option premium cushion your downside with low-delta, out-of-the-money Sell High positions – and keep most of the upside.
             </p>
             <span className="vbanner-cta">Deposit Now <span aria-hidden="true">→</span></span>
           </div>

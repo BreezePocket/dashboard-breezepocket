@@ -25,8 +25,8 @@ const pad2 = (n: number) => String(n).padStart(2, '0')
 const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC` }
 const tone = (apr: number) => (apr > 33 ? 'red' : apr > 20 ? 'amber' : 'green')
 const TYPES: { id: OptionType; label: string }[] = [
-  { id: 'call', label: 'Covered call' },
-  { id: 'put', label: 'Cash secured put' },
+  { id: 'call', label: 'Sell high' },
+  { id: 'put', label: 'Buy low' },
 ]
 
 type Flow =
@@ -89,12 +89,12 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
             <img src={iconFor(asset)} alt="" />
             <h2>{assetName(asset)} is not live on devnet yet</h2>
             <p>
-              The breezepocket program currently settles SOL commitments only. {asset} {type === 'call' ? 'covered calls' : 'cash-secured puts'} are
+              The breezepocket program currently settles SOL commitments only. {asset} {type === 'call' ? 'Sell High' : 'Buy Low'} markets are
               on the roadmap and will use the same market maker, expiries and settlement flow once the asset is listed.
             </p>
             <div className="soon-links">
-              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'call'))}><span className="ic"><img src={iconFor('SOL')} alt="" /></span>SOL covered call</Link>
-              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'put'))}><span className="ic"><img src={iconFor('USDC')} alt="" /></span>SOL cash-secured put</Link>
+              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'call'))}><span className="ic"><img src={iconFor('SOL')} alt="" /></span>SOL Sell high</Link>
+              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'put'))}><span className="ic"><img src={iconFor('USDC')} alt="" /></span>SOL Buy low</Link>
             </div>
           </div>
         </div>

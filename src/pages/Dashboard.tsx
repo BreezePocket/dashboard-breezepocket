@@ -175,7 +175,7 @@ export default function Dashboard() {
                       <div className="asset"><img src={iconFor('SOL')} alt="" /><div className="asset-id"><b>SOL</b><small><a href={explorerAddr(p.address.toBase58())} target="_blank" rel="noopener noreferrer">{shortAddr(p.address.toBase58())}</a></small></div></div>
                     </li>
                     <li className="tbl-c end"><div className="chain"><img src="/icons/solana.svg" alt="" /><span>Solana</span></div></li>
-                    <li className="tbl-c end">{p.product === 'sell_sol' ? 'Covered call' : 'Cash secured put'}</li>
+                    <li className="tbl-c end">{p.product === 'sell_sol' ? 'Sell high' : 'Buy low'}</li>
                     <li className="tbl-c end">{dateShort(p.expiryTs)}</li>
                     <li className="tbl-c end">{coll}</li>
                     <li className="tbl-c end">${fmtNum(notionalUsd(p))}</li>
