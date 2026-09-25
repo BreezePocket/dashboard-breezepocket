@@ -6,7 +6,7 @@ import Footer from './components/Footer'
 import { DeskProvider } from './components/DeskProvider'
 
 const TITLES: Record<string, string> = {
-  '/': 'PAYtience | Earn upfront on your crypto',
+  '/': 'PAYtience | Get paid while you wait',
   '/earn': 'PAYtience | Earn',
   '/vaults': 'PAYtience | Vaults',
   '/dashboard': 'PAYtience | Dashboard',
