@@ -1,5 +1,5 @@
 /**
- * Client for the breezepocket market-maker desk (MM-system/breezepocket-mm REST API).
+ * Client for the PAYtience market-maker desk (REST API from the MM-system-breezepocket repo).
  *
  * The desk URL is resolved at runtime, in order: a `?mm=` query override (persisted),
  * the build-time VITE_MM_URL, then http://localhost:8787 for a desk running next to
@@ -103,7 +103,7 @@ export type RfqRequest = {
   nonce: bigint
 }
 
-const LS_KEY = 'breezepocket.mmUrl'
+const LS_KEY = 'paytience.mmUrl'
 const LOCAL = 'http://localhost:8787'
 
 export function mmUrlCandidates(): string[] {

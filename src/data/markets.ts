@@ -1,7 +1,7 @@
 export type ChainId = 101
 export type OptionType = 'call' | 'put'
 
-/** BreezePocket runs on Solana mainnet only. */
+/** PAYtience runs on Solana mainnet only. */
 export const SOLANA: ChainId = 101
 export const CHAINS: Record<ChainId, { name: string; icon: string }> = {
   101: { name: 'Solana', icon: '/icons/solana.svg' },

@@ -16,7 +16,7 @@ export default function Nav() {
   const deskTitle = status === 'online' ? `Desk online · SOL $${health?.price.spot.toFixed(2)}` : status === 'offline' ? 'Market-maker desk unreachable' : 'Connecting to desk…'
   return (
     <nav className="nav">
-      <NavLink to="/" className="nav-logo" aria-label="BreezePocket home">
+      <NavLink to="/" className="nav-logo" aria-label="PAYtience home">
         <Logo size={44} />
       </NavLink>
       {LINKS.map((l) => (

@@ -7,7 +7,7 @@ export default function Footer() {
         <a href="#" aria-label="Telegram"><img src="/icons/telegram-logo.svg" alt="" /></a>
       </div>
       <div className="footer-links">
-        <span className="footer-brand">© {new Date().getFullYear()} BreezePocket</span>
+        <span className="footer-brand">© {new Date().getFullYear()} PAYtience</span>
         <a href="#">Docs</a>
         <a href="#">Privacy policy</a>
         <a href="#">Terms of service</a>

@@ -1,4 +1,4 @@
-# BreezePocket
+# PAYtience
 
 Options-income front end for Solana: Sell High or Buy Low on SOL, liquid staking tokens, bridged BTC/ETH and ecosystem tokens, and earn the premium upfront. Built with Vite, React, TypeScript, React Router and the Solana wallet adapter.
 
@@ -16,14 +16,14 @@ Options-income front end for Solana: Sell High or Buy Low on SOL, liquid staking
 
 ## On-chain integration (Solana devnet)
 
-The app is wired to the breezepocket Anchor program and its house market maker:
+The app is wired to the PAYtience Anchor program (on-chain name `breezepocket`) and its house market maker:
 
 | | |
 | --- | --- |
 | Program | `BeytdpJYSGP1oFRxEiBLkSRGuW6HW3Pk9dqSZCuSteQ9` on devnet (source: `../core`) |
 | GlobalConfig | `BejjQ3MwvvFwaP3FxyDjj7Cu4gBMrH5Txr5xuCR32THp` |
 | Test USDC mint | `GxSfF7CfT3C2Sr7RYFwXoRHmhFeH4DpUVQCDNiktxEFD` |
-| Market maker | `../MM-system/breezepocket-mm`, REST on port 8787 |
+| Market maker | `../MM-system-breezepocket`, REST on port 8787 |
 
 Live markets are **SOL Sell High** (Sell SOL) and **SOL Buy Low** (Buy SOL); every other row on the Earn page is a roadmap placeholder marked SOON.
 
@@ -45,7 +45,7 @@ The Dashboard also offers permissionless **Settle** once a settlement price is p
 ## Running the desk
 
 ```bash
-cd ../MM-system/breezepocket-mm
+cd ../MM-system-breezepocket
 npm start                                        # PRICE_SOURCE=deribit; REST on :8787
 cloudflared tunnel --url http://localhost:8787   # public URL for the deployed frontend
 ```
@@ -67,7 +67,7 @@ Then open http://localhost:5173.
 
 ## Deploy
 
-Hosted on Cloudflare Pages at https://breezepocket-app.pages.dev
+Hosted on Cloudflare Pages at https://app.paytience.app (also https://breezepocket-app.pages.dev)
 
 ```bash
 npm run deploy

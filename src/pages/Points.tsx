@@ -21,7 +21,7 @@ export default function Points() {
             </div>
             <div className="pt-foot">
               <div className="pt-stat"><span>-</span><small>Leaderboard rank</small></div>
-              <span className="pt-badge" aria-hidden="true"><Mark id="bp-grad-badge" /></span>
+              <span className="pt-badge" aria-hidden="true"><Mark id="pt-mark-badge" /></span>
             </div>
           </div>
         </Terminal>
@@ -41,7 +41,7 @@ export default function Points() {
         </Terminal>
         <Terminal title="~/points/history" className="span-12">
           <div className="pt-learn">
-            <a className="link-u" href="#">Learn more about BreezePocket Points.</a>
+            <a className="link-u" href="#">Learn more about PAYtience Points.</a>
           </div>
           <div className="tbl-wrap">
             <div className="tbl" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>

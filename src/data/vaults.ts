@@ -68,7 +68,7 @@ export const VAULT_DETAILS: Record<string, VaultDetailData> = {
     apr: '8%',
     nextEpoch: '2026-09-17',
     strike: '4,663.53',
-    mint: 'PAXGso1dGo1dVau1tBreezePocket1111111111111',
+    mint: 'PAXGso1dGo1dVau1tPAYtience1111111111111111',
     thesis: [
       { title: 'Why Gold', body: "Gold presents a compelling macro setup. A strong rally through 2024–2026 has lifted implied volatility (GVZ in the high 20s and even into the low 30s), while the asset's role as a structural inflation hedge tends to favor measured price action over extended timeframes. This is precisely the environment where Sell High income shines: elevated premiums paired with steady, range-bound behavior or controlled upward growth." },
       { title: 'Income / Yield Generation', body: 'In 2026 year-to-date (until Jul 17) alone, backtests show a greater than 3% outperformance compared to simply buying and holding gold, which itself results in accumulating more.' },
@@ -104,7 +104,7 @@ export const VAULT_DETAILS: Record<string, VaultDetailData> = {
     apr: '14%',
     nextEpoch: '2026-09-17',
     strike: '372.80',
-    mint: 'TSLAonTokenizedStockBreezePocket11111111111',
+    mint: 'TSLAonTokenizedStockPAYtience11111111111111',
     thesis: [
       { title: 'Why Tesla', body: "Tesla is one of the most actively traded and most volatile large-cap equities in the world. Implied volatility routinely sits in the 50–70% range, several times higher than the broad index, driven by delivery numbers, autonomy headlines, and macro rate sensitivity. That persistent volatility premium is exactly what a systematic Sell High strategy is paid to sell: rich upfront premium on a stock that spends long stretches ranging between catalysts." },
       { title: 'Income / Yield Generation', body: 'Backtests over 2024–2026 show that writing 105–108% OTM biweekly calls on TSLA harvested double-digit annualised premium while retaining the large majority of rally upside, with the premium cushion meaningfully reducing drawdowns in flat and down periods versus buy-and-hold.' },
@@ -139,7 +139,7 @@ export const VAULT_DETAILS: Record<string, VaultDetailData> = {
     apr: '12%',
     nextEpoch: '2026-09-17',
     strike: '195.20',
-    mint: 'HYNIXonTokenizedStockBreezePocket1111111111',
+    mint: 'HYNIXonTokenizedStockPAYtience1111111111111',
     thesis: [
       { title: 'Why SK Hynix', body: 'SK Hynix supplies the majority of the high-bandwidth memory (HBM) that powers AI accelerators, and the HBM supply cycle has driven a multi-year re-rating of the stock. Implied volatility stays elevated around earnings, capex announcements, and memory pricing data, while the structural demand story favors a steady grind higher over explosive moves. That mix of rich premium and controlled upside is where Sell High income does its best work.' },
       { title: 'Income / Yield Generation', body: 'Backtests over 2024–2026 show that writing 105–107% OTM biweekly calls on SK Hynix harvested low-double-digit annualised premium while keeping most of the trend upside, with the premium cushion reducing drawdowns during memory-pricing pullbacks versus buy-and-hold.' },

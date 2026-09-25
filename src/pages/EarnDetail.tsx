@@ -333,7 +333,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
         <div className="ed-body">
           {status === 'offline' && (
             <div className="notice warn">
-              Market-maker desk unreachable. Start <code>MM-system/breezepocket-mm</code> (<code>npm start</code>) and reload, or point this page at a desk with <code>?mm=https://…</code>.
+              Market-maker desk unreachable. Try again in a moment, or point this page at a desk with <code>?mm=https://…</code>.
             </div>
           )}
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}

@@ -829,7 +829,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .lb-addr { font-family: var(--mono); }
 .lb-rank { font-weight: 700; }
 
-/* ---------- BreezePocket logo ---------- */
+/* ---------- PAYtience logo ---------- */
 .logo {
   display: inline-flex;
   align-items: center;
@@ -844,7 +844,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   letter-spacing: -0.02em;
 }
 .logo-word b { font-weight: 700; color: #1b3a7a; }
-.logo-word span { font-weight: 500; color: #1e88f5; }
+.logo-word span { font-weight: 500; color: #0a66ff; }
 .logo-light .logo-word b { color: #fff; }
 .logo-stacked { flex-direction: column; gap: calc(var(--logo-size) * 0.3); }
 .nav-logo .logo-word { font-size: 24px; }

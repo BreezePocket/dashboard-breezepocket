@@ -6,12 +6,12 @@ import Footer from './components/Footer'
 import { DeskProvider } from './components/DeskProvider'
 
 const TITLES: Record<string, string> = {
-  '/': 'BreezePocket | Earn upfront on your crypto',
-  '/earn': 'BreezePocket | Earn',
-  '/vaults': 'BreezePocket | Vaults',
-  '/dashboard': 'BreezePocket | Dashboard',
-  '/points': 'BreezePocket | Points',
-  '/leaderboard': 'BreezePocket | Leaderboard',
+  '/': 'PAYtience | Earn upfront on your crypto',
+  '/earn': 'PAYtience | Earn',
+  '/vaults': 'PAYtience | Vaults',
+  '/dashboard': 'PAYtience | Dashboard',
+  '/points': 'PAYtience | Points',
+  '/leaderboard': 'PAYtience | Leaderboard',
 }
 
 export default function App() {
@@ -20,7 +20,7 @@ export default function App() {
   const dark = path === '/vaults' || path.startsWith('/vault/')
 
   useEffect(() => {
-    document.title = TITLES[path] ?? (path.startsWith('/vault/') ? 'BreezePocket | Vault' : 'BreezePocket')
+    document.title = TITLES[path] ?? (path.startsWith('/vault/') ? 'PAYtience | Vault' : 'PAYtience')
     document.body.style.background = dark ? '#000' : ''
     document.body.dataset.theme = dark ? 'dark' : 'light'
     window.scrollTo(0, 0)
