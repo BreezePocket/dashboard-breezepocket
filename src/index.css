@@ -301,6 +301,12 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .tab.is-active { z-index: 3; }
 .tab.is-active .tab-bg { color: var(--surface2); }
 .tab span { position: relative; transform: translateX(-3px); }
+/* Side by side, the Earn strategy names outgrow a phone and the second tab scrolls out of
+   sight. There, both tabs split the width and wrap; the ribbon stretches to the new height. */
+@media (max-width: 640px) {
+  .tabs-fit { height: auto; padding-right: 16px; overflow: visible; }
+  .tabs-fit .tab { flex: 1 1 0; min-width: 0; height: auto; min-height: 39px; padding: 6px 26px 6px 12px; white-space: normal; line-height: 1.3; }
+}
 
 /* ---------- Cap / search bar strip ---------- */
 .strip {

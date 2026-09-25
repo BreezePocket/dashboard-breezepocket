@@ -17,8 +17,8 @@ type Row = Market & { state: State; underlying: string | null; venue: string | n
 const STATE_ORDER: Record<State, number> = { live: 0, quote: 1, soon: 2 }
 
 const TABS = [
-  { id: 'call' as Tab, label: 'sell high' },
-  { id: 'put' as Tab, label: 'buy low' },
+  { id: 'put' as Tab, label: 'Start Accumulating Cheap Asset' },
+  { id: 'call' as Tab, label: 'Sell High Your Asset' },
 ]
 const CLASSES: { id: AssetClass; label: string }[] = [
   { id: 'all', label: 'all assets' },
@@ -34,7 +34,7 @@ const aprRange = (b: Board | null) => {
 }
 
 export default function Earn() {
-  const [tab, setTab] = useState<Tab>('call')
+  const [tab, setTab] = useState<Tab>('put')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
   const [cls, setCls] = useState<AssetClass>('all')
   const [menu, setMenu] = useState(false)
@@ -111,9 +111,9 @@ export default function Earn() {
             </span>
           </div>
         </div>
-        <Tabs items={TABS} active={tab} onChange={setTab} />
+        <Tabs items={TABS} active={tab} onChange={setTab} fit />
         <div className="tbl-wrap">
-          <div className="tbl" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) minmax(175px, max-content) minmax(125px, max-content) minmax(125px, max-content) max-content' }}>
+          <div className="tbl" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) minmax(125px, max-content) minmax(125px, max-content) max-content' }}>
             <div className="tbl-h sticky" role="columnheader">
               <button type="button" onClick={() => toggleSort('asset')} style={{ display: 'flex', alignItems: 'center' }}><SortIcon />Asset</button>
               <div className="filter-wrap" ref={menuRef}>
@@ -130,7 +130,6 @@ export default function Earn() {
             <div className="tbl-h" role="columnheader">
               <button type="button" onClick={() => toggleSort('chain')} style={{ display: 'flex', alignItems: 'center' }}><SortIcon />Chain</button>
             </div>
-            <div className="tbl-h end" role="columnheader">Type</div>
             <div className="tbl-h end" role="columnheader">
               <button type="button" onClick={() => toggleSort('maxApr')} style={{ display: 'flex', alignItems: 'center' }}><SortIcon />Max APR</button>
             </div>
@@ -166,7 +165,6 @@ export default function Earn() {
                     </div>
                   </li>
                   <li className="tbl-c"><div className="chain"><img src={chain.icon} alt={`The icon for ${chain.name}`} /><span>{chain.name}</span></div></li>
-                  <li className="tbl-c end">{tab === 'call' ? 'Sell high' : 'Buy low'}</li>
                   <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.maxApr)}</span></li>
                   <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.minApr)}</span></li>
                   <li className="tbl-c end">
