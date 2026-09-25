@@ -13,9 +13,6 @@ type Vault = {
   href?: string
 }
 
-const earn = (asset: string, type: 'call' | 'put' = 'call') =>
-  `/earn?asset=${asset}&collateral=${type === 'call' ? asset : 'USDC'}&strike=USDC&type=${type}`
-
 const VAULTS: Vault[] = [
   {
     id: 'paxg',
@@ -30,7 +27,25 @@ const VAULTS: Vault[] = [
       'Generate “income” from Gold.',
       'A bet on systemic central bank buying.',
     ],
-    href: earn('PAXG'),
+    href: '/vault/paxg',
+  },
+  {
+    id: 'reserve',
+    title: 'The Reserve Vault',
+    subtitle: 'BTC - PAXG',
+    sentiment: 'Bullish',
+    apr: 'TBA',
+    icon: '/icons/reserve.svg',
+    body: "AI-powered vault for the assets the future saves in: Bitcoin's digital scarcity, gold's tokenized permanence, compute's productive power. It reads real-time volatility and directional price signals, entering covered call positions only at optimal sweet spots — maximizing yield, avoids sacrificing the explosive upside.",
+  },
+  {
+    id: 'qqqon',
+    title: 'QQQon Principal Protected Vault',
+    subtitle: 'QQQon',
+    sentiment: 'Bullish Skew',
+    apr: 'TBA',
+    icon: '/icons/qqqon.svg',
+    body: "A vault that runs an automated capital protection strategy backed by fixed-income assets and long call options on QQQon. Depositors secure 100% principal protection against market drops while capturing upward price movements of the Nasdaq-100 Index. Profits are generated in this vault when the QQQon options expire in-the-money, capturing the asset's positive price appreciation above the entry strike.",
   },
   {
     id: 'tsla',
@@ -45,7 +60,7 @@ const VAULTS: Vault[] = [
       'Generate income from tokenized equity exposure onchain.',
       'A bet on continued retail and institutional demand for TSLA.',
     ],
-    href: earn('TSLAon'),
+    href: '/vault/tsla',
   },
   {
     id: 'hynix',
@@ -60,7 +75,7 @@ const VAULTS: Vault[] = [
       'Income from the AI memory supercycle, settled onchain.',
       'A bet on sustained AI data-center capex.',
     ],
-    href: earn('HYNIXon'),
+    href: '/vault/hynix',
   },
   {
     id: 'nvda',

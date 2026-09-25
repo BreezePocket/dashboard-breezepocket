@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { Logo } from './Logo'
 import WalletButton from './WalletButton'
+import { useDesk } from './DeskProvider'
 
 const LINKS = [
   { to: '/', label: 'Earn' },
@@ -11,6 +12,8 @@ const LINKS = [
 ]
 
 export default function Nav() {
+  const { status, health } = useDesk()
+  const deskTitle = status === 'online' ? `Desk online · SOL $${health?.price.spot.toFixed(2)}` : status === 'offline' ? 'Market-maker desk unreachable' : 'Connecting to desk…'
   return (
     <nav className="nav">
       <NavLink to="/" className="nav-logo" aria-label="BreezePocket home">
@@ -22,6 +25,9 @@ export default function Nav() {
         </NavLink>
       ))}
       <div className="nav-spacer" />
+      <span className={`net-pill desk-${status}`} title={deskTitle}>
+        <span className="net-dot" />devnet
+      </span>
       <WalletButton />
     </nav>
   )
