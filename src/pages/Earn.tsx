@@ -140,7 +140,7 @@ export default function Earn() {
 
             {rows.map((m) => {
               const chain = CHAINS[m.chainId]
-              const label = tab === 'call' ? `Sell High with ${m.asset}` : `Buy Low with ${m.collateral}`
+              const label = tab === 'call' ? `Sell High Your ${m.asset} Asset` : `Buy Low with ${m.collateral}`
               const btnIcon = tab === 'call' ? iconFor(m.asset) : iconFor(m.collateral)
               const soon = m.state === 'soon'
               // SOON rows keep their greyed placeholder APRs; priced rows show the desk's number or a dash until it lands.
