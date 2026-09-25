@@ -511,7 +511,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           />
           <div className="ed-head-group">
             <span className="tag-quote" title="Live indicative quote; not tradable on devnet">QUOTE</span>
-            <span className="ed-price" title={`${under} spot, from ${desk?.venue === 'deribit' ? `the Deribit ${under.toLowerCase()}_usdc index` : 'Alpaca'}`}>{spot ? fmtPrice(spot) : '—'}</span>
+            <span className="ed-price" title={`${under} spot, from ${desk?.venue === 'deribit' ? `the Deribit ${under.toLowerCase()}_usdc index` : desk?.venue === 'prestocks' ? 'the PreStocks token price' : 'Alpaca'}`}>{spot ? fmtPrice(spot) : '—'}</span>
           </div>
         </div>
 
@@ -520,7 +520,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
           <div className="notice">
             <b>Quote only.</b> Live prices from {source}
-            {desk?.atm_vol ? `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%` : ''}. The devnet program settles SOL alone, so a {asset} position
+            {desk?.atm_vol ? (desk.venue === 'prestocks' ? `, flat synthetic vol ${(desk.atm_vol * 100).toFixed(0)}%` : `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%`) : ''}. The devnet program settles SOL alone, so a {asset} position
             cannot be opened yet.
           </div>
 

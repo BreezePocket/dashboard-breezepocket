@@ -5,7 +5,7 @@ import Terminal from '../components/Terminal'
 import Tabs from '../components/Tabs'
 import { SortIcon, FilterIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
-import { CALLS, PUTS, CHAINS, iconFor, marketHref, isRwa, assetName, type Market } from '../data/markets'
+import { CALLS, PUTS, CHAINS, iconFor, marketHref, isRwa, isPreStocks, assetName, type Market } from '../data/markets'
 import { priceSource, type Board, type Product } from '../lib/mm'
 
 type Tab = 'call' | 'put'
@@ -37,6 +37,7 @@ export default function Earn() {
   const [tab, setTab] = useState<Tab>('put')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
   const [cls, setCls] = useState<AssetClass>('all')
+  const [onlyPre, setOnlyPre] = useState(false)
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { client, health, status } = useDesk()
@@ -88,11 +89,12 @@ export default function Earn() {
       }
     })
     if (cls !== 'all') src = src.filter((m) => isRwa(m.asset) === (cls === 'rwa'))
+    if (onlyPre) src = src.filter((m) => isPreStocks(m.asset))
     // Unsorted, markets with a live price come first; Array.sort is stable, so each group keeps its order.
     if (!sort) return [...src].sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state])
     const val = (m: Row) => (sort.key === 'asset' ? m.asset.toLowerCase() : sort.key === 'chain' ? CHAINS[m.chainId].name : m[sort.key])
     return [...src].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir)
-  }, [tab, sort, cls, boards, quoted])
+  }, [tab, sort, cls, onlyPre, boards, quoted])
 
   const toggleSort = (key: SortKey) => setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
 
@@ -111,7 +113,13 @@ export default function Earn() {
             </span>
           </div>
         </div>
-        <Tabs items={TABS} active={tab} onChange={setTab} fit />
+        <div className="tabs-row">
+          <Tabs items={TABS} active={tab} onChange={setTab} fit />
+          <label className="only-pre">
+            <input type="checkbox" checked={onlyPre} onChange={(e) => setOnlyPre(e.target.checked)} />
+            Show only preStocks
+          </label>
+        </div>
         <div className="tbl-wrap">
           <div className="tbl" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) minmax(125px, max-content) minmax(125px, max-content) max-content' }}>
             <div className="tbl-h sticky" role="columnheader">
@@ -158,7 +166,11 @@ export default function Earn() {
                             <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: the devnet program settles SOL alone.`}>QUOTE</span>
                           )}
                           {soon && <span className="tag-soon">SOON</span>}
-                          {isRwa(m.asset) && <span className="tag-rwa">RWA</span>}
+                          {isPreStocks(m.asset) ? (
+                            <span className="tag-rwa" title="Tokenized pre-IPO shares issued by PreStocks">PRE-IPO</span>
+                          ) : (
+                            isRwa(m.asset) && <span className="tag-rwa">RWA</span>
+                          )}
                         </span>
                         <small>{assetName(m.asset)}</small>
                       </div>

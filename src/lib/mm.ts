@@ -208,7 +208,9 @@ export const priceSource = (venue: string, underlying: string) =>
     ? `the Deribit ${underlying} option chain`
     : venue === 'alpaca'
       ? `${underlying} listed options via Alpaca (indicative feed)`
-      : `${underlying} (${venue})`
+      : venue === 'prestocks'
+        ? `a synthetic chain on the ${underlying} PreStocks token price`
+        : `${underlying} (${venue})`
 
 export const productLabel = (p: Product) => (p === 'sell_sol' ? 'Sell high' : 'Buy low')
 export const productForType = (t: 'call' | 'put'): Product => (t === 'call' ? 'sell_sol' : 'buy_sol')

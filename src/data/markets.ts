@@ -7,10 +7,19 @@ export const CHAINS: Record<ChainId, { name: string; icon: string }> = {
   101: { name: 'Solana', icon: '/icons/solana.svg' },
 }
 
-export const iconFor = (symbol: string) => (symbol === 'PAXG' ? '/icons/paxg.png' : `/icons/${symbol.toLowerCase()}.svg`)
+/** Tokenized pre-IPO companies issued by PreStocks (prestocks.com); the desk quotes them from a synthetic chain. */
+const PRESTOCKS = new Set(['ANTHROPIC', 'OPENAI', 'SPACEX', 'ANDURIL', 'NEURALINK', 'FIGUREAI', 'KALSHI', 'POLYMARKET'])
+export const isPreStocks = (asset: string) => PRESTOCKS.has(asset)
 
-/** Tokenized real-world assets, as opposed to native crypto. */
-const RWA = new Set(['PAXG', 'XAGon', 'TSLAon', 'NVDAon', 'HYNIXon', 'SPYon', 'QQQon', 'AAPLon', 'MSFTon', 'AMZNon', 'GOOGLon', 'METAon', 'NFLXon', 'COINon', 'MSTRon'])
+export const iconFor = (symbol: string) =>
+  symbol === 'PAXG'
+    ? '/icons/paxg.png'
+    : PRESTOCKS.has(symbol)
+      ? `https://prestocks.com/logos/${symbol.toLowerCase()}.png`
+      : `/icons/${symbol.toLowerCase()}.svg`
+
+/** Tokenized real-world assets, as opposed to native crypto. PreStocks count: they track private company shares. */
+const RWA = new Set([...PRESTOCKS, 'PAXG', 'XAGon', 'TSLAon', 'NVDAon', 'HYNIXon', 'SPYon', 'QQQon', 'AAPLon', 'MSFTon', 'AMZNon', 'GOOGLon', 'METAon', 'NFLXon', 'COINon', 'MSTRon'])
 export const isRwa = (asset: string) => RWA.has(asset)
 
 /** Long-form label for an asset, shown under the ticker on the Earn table. */
@@ -36,6 +45,14 @@ const ASSET_NAMES: Record<string, string> = {
   NFLXon: 'Netflix',
   COINon: 'Coinbase',
   MSTRon: 'Strategy',
+  ANTHROPIC: 'Anthropic',
+  OPENAI: 'OpenAI',
+  SPACEX: 'SpaceX',
+  ANDURIL: 'Anduril',
+  NEURALINK: 'Neuralink',
+  FIGUREAI: 'Figure AI',
+  KALSHI: 'Kalshi',
+  POLYMARKET: 'Polymarket',
 }
 export const assetName = (asset: string) => ASSET_NAMES[asset] ?? asset
 
@@ -78,6 +95,14 @@ export const CALLS: Market[] = [
   call('NFLXon', 'USDC', NO_APR, NO_APR),
   call('COINon', 'USDC', NO_APR, NO_APR),
   call('MSTRon', 'USDC', NO_APR, NO_APR),
+  call('ANTHROPIC', 'USDC', NO_APR, NO_APR),
+  call('OPENAI', 'USDC', NO_APR, NO_APR),
+  call('SPACEX', 'USDC', NO_APR, NO_APR),
+  call('ANDURIL', 'USDC', NO_APR, NO_APR),
+  call('NEURALINK', 'USDC', NO_APR, NO_APR),
+  call('FIGUREAI', 'USDC', NO_APR, NO_APR),
+  call('KALSHI', 'USDC', NO_APR, NO_APR),
+  call('POLYMARKET', 'USDC', NO_APR, NO_APR),
   call('JUP', 'USDC', 118.4, 4.62),
   call('PYTH', 'USDC', 112.7, 3.88),
   call('RAY', 'USDC', 123.39, 4.44),
@@ -102,6 +127,14 @@ export const PUTS: Market[] = [
   put('NFLXon', 'USDC', NO_APR, NO_APR),
   put('COINon', 'USDC', NO_APR, NO_APR),
   put('MSTRon', 'USDC', NO_APR, NO_APR),
+  put('ANTHROPIC', 'USDC', NO_APR, NO_APR),
+  put('OPENAI', 'USDC', NO_APR, NO_APR),
+  put('SPACEX', 'USDC', NO_APR, NO_APR),
+  put('ANDURIL', 'USDC', NO_APR, NO_APR),
+  put('NEURALINK', 'USDC', NO_APR, NO_APR),
+  put('FIGUREAI', 'USDC', NO_APR, NO_APR),
+  put('KALSHI', 'USDC', NO_APR, NO_APR),
+  put('POLYMARKET', 'USDC', NO_APR, NO_APR),
   put('JUP', 'USDC', 108.2, 4.9),
   put('RAY', 'USDC', 101.3, 4.35),
 ]
