@@ -6,14 +6,14 @@ import Tabs from '../components/Tabs'
 import { SortIcon, FilterIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
 import { CALLS, PUTS, CHAINS, iconFor, marketHref, isRwa, assetName, type Market } from '../data/markets'
-import type { Board, Product } from '../lib/mm'
+import { priceSource, type Board, type Product } from '../lib/mm'
 
 type Tab = 'call' | 'put'
 type SortKey = 'asset' | 'chain' | 'maxApr' | 'minApr'
 type AssetClass = 'all' | 'rwa' | 'crypto'
 /** live: tradable on chain · quote: the desk streams a live price but cannot trade it · soon: neither. */
 type State = 'live' | 'quote' | 'soon'
-type Row = Market & { state: State; underlying: string | null; priced: boolean }
+type Row = Market & { state: State; underlying: string | null; venue: string | null; priced: boolean }
 const STATE_ORDER: Record<State, number> = { live: 0, quote: 1, soon: 2 }
 
 const TABS = [
@@ -75,12 +75,13 @@ export default function Earn() {
   const rows = useMemo<Row[]>(() => {
     let src: Row[] = (tab === 'call' ? CALLS : PUTS).map((m) => {
       const desk = quoted.get(m.asset)
-      if (!desk) return { ...m, state: 'soon', underlying: null, priced: false }
+      if (!desk) return { ...m, state: 'soon', underlying: null, venue: null, priced: false }
       const range = aprRange(boards[`${m.asset}:${PRODUCT[tab]}`] ?? null)
       return {
         ...m,
         state: desk.tradable ? 'live' : 'quote',
         underlying: desk.underlying,
+        venue: desk.venue,
         priced: range !== null,
         maxApr: range?.max ?? 0,
         minApr: range?.min ?? 0,
@@ -144,7 +145,7 @@ export default function Earn() {
               const btnIcon = tab === 'call' ? iconFor(m.asset) : iconFor(m.collateral)
               const soon = m.state === 'soon'
               // SOON rows keep their greyed placeholder APRs; priced rows show the desk's number or a dash until it lands.
-              const apr = (v: number) => (soon || m.priced ? `${v.toFixed(2)}%` : '—')
+              const apr = (v: number) => ((soon || m.priced) && Number.isFinite(v) ? `${v.toFixed(2)}%` : '—')
               return (
                 <ul className={`tbl-row ${soon ? 'is-soon' : 'is-live'}`} key={`${m.asset}-${m.collateral}-${m.type}`}>
                   <li className="tbl-c sticky">
@@ -155,7 +156,7 @@ export default function Earn() {
                           <b>{m.asset}</b>
                           {m.state === 'live' && <span className="tag-live" title="Quoted live by the market maker and tradable on Solana devnet">LIVE</span>}
                           {m.state === 'quote' && (
-                            <span className="tag-quote" title={`Live indicative quote from ${m.underlying} listed options via Alpaca. Quote only: the devnet program settles SOL alone.`}>QUOTE</span>
+                            <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: the devnet program settles SOL alone.`}>QUOTE</span>
                           )}
                           {soon && <span className="tag-soon">SOON</span>}
                           {isRwa(m.asset) && <span className="tag-rwa">RWA</span>}

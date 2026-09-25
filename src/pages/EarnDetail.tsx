@@ -11,7 +11,7 @@ import { useDesk } from '../components/DeskProvider'
 import { useBalances } from '../hooks/useBalances'
 import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
 import {
-  collateralOf, productForType, productLabel, randomNonce,
+  collateralOf, priceSource, productForType, productLabel, randomNonce,
   type Board, type BoardCell, type DeskExpiry, type FaucetInfo, type Product, type Quote,
 } from '../lib/mm'
 import { buildOpenPositionTx, positionPda, solToLamports, usdcToBase, priceToBase, lamportsToSol, baseToUsdc } from '../lib/program'
@@ -161,7 +161,10 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 
   const cells: BoardCell[] = useMemo(() => {
     const row = board?.expiries.find((r) => r.expiry_ts === expiryTs)
-    return row ? [...row.quotes].sort((a, b) => b.apr_pct - a.apr_pct) : []
+    // Nearest to spot first. Sorting by APR gives the same order on clean data but
+    // scrambles the prices when a wing quote is noisy.
+    const idx = board?.index_price ?? 0
+    return row ? [...row.quotes].sort((a, b) => Math.abs(a.fixed_price - idx) - Math.abs(b.fixed_price - idx)) : []
   }, [board, expiryTs])
   const cell = cells.find((c) => c.fixed_price === strike) ?? null
 
@@ -424,8 +427,8 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 /* ---------------------------------------------------------------------------------------- */
 
 /**
- * A market the desk prices but the program cannot settle (the tokenized equities, priced from
- * US listed options via Alpaca). Same strike ladder and payoff preview as SOL, but read-only:
+ * A market the desk prices but the program cannot settle: WBTC and WETH from Deribit, the
+ * tokenized equities from US listed options via Alpaca. Same strike ladder and payoff preview as SOL, but read-only:
  * there is no RFQ and no transaction, because the desk declines to trade anything but SOL.
  */
 function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: OptionType; expiryParam: number | null }) {
@@ -469,7 +472,10 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
 
   const cells: BoardCell[] = useMemo(() => {
     const row = board?.expiries.find((r) => r.expiry_ts === expiryTs)
-    return row ? [...row.quotes].sort((a, b) => b.apr_pct - a.apr_pct) : []
+    // Nearest to spot first. Sorting by APR gives the same order on clean data but
+    // scrambles the prices when a wing quote is noisy.
+    const idx = board?.index_price ?? 0
+    return row ? [...row.quotes].sort((a, b) => Math.abs(a.fixed_price - idx) - Math.abs(b.fixed_price - idx)) : []
   }, [board, expiryTs])
 
   // Once the desk has answered, an asset it does not price is simply not live yet.
@@ -477,6 +483,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
 
   const cell = cells.find((c) => c.fixed_price === strike) ?? null
   const under = desk?.underlying ?? asset
+  const source = priceSource(desk?.venue ?? '', under)
   const spot = desk?.spot ?? board?.index_price ?? null
   const collateral = type === 'call' ? asset : 'USDC'
   // The board prices a fixed size: 1 unit of the asset (9 decimals) for calls, 100 USDC for puts.
@@ -504,7 +511,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           />
           <div className="ed-head-group">
             <span className="tag-quote" title="Live indicative quote; not tradable on devnet">QUOTE</span>
-            <span className="ed-price" title={`${under} spot, from Alpaca`}>{spot ? fmtPrice(spot) : '—'}</span>
+            <span className="ed-price" title={`${under} spot, from ${desk?.venue === 'deribit' ? `the Deribit ${under.toLowerCase()}_usdc index` : 'Alpaca'}`}>{spot ? fmtPrice(spot) : '—'}</span>
           </div>
         </div>
 
@@ -512,7 +519,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           {status === 'offline' && <div className="notice warn">Market-maker desk unreachable, so there are no live quotes right now.</div>}
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
           <div className="notice">
-            <b>Quote only.</b> Live indicative prices from {under} listed options via Alpaca
+            <b>Quote only.</b> Live prices from {source}
             {desk?.atm_vol ? `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%` : ''}. The devnet program settles SOL alone, so a {asset} position
             cannot be opened yet.
           </div>

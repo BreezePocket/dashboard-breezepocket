@@ -10,7 +10,7 @@ export const CHAINS: Record<ChainId, { name: string; icon: string }> = {
 export const iconFor = (symbol: string) => (symbol === 'PAXG' ? '/icons/paxg.png' : `/icons/${symbol.toLowerCase()}.svg`)
 
 /** Tokenized real-world assets, as opposed to native crypto. */
-const RWA = new Set(['PAXG', 'XAGon', 'TSLAon', 'NVDAon', 'HYNIXon', 'SPYon', 'QQQon'])
+const RWA = new Set(['PAXG', 'XAGon', 'TSLAon', 'NVDAon', 'HYNIXon', 'SPYon', 'QQQon', 'AAPLon', 'MSFTon', 'AMZNon', 'GOOGLon', 'METAon', 'NFLXon', 'COINon', 'MSTRon'])
 export const isRwa = (asset: string) => RWA.has(asset)
 
 /** Long-form label for an asset, shown under the ticker on the Earn table. */
@@ -28,6 +28,14 @@ const ASSET_NAMES: Record<string, string> = {
   HYNIXon: 'SK Hynix',
   SPYon: 'S&P 500 ETF',
   QQQon: 'Nasdaq-100 ETF',
+  AAPLon: 'Apple',
+  MSFTon: 'Microsoft',
+  AMZNon: 'Amazon',
+  GOOGLon: 'Alphabet',
+  METAon: 'Meta Platforms',
+  NFLXon: 'Netflix',
+  COINon: 'Coinbase',
+  MSTRon: 'Strategy',
 }
 export const assetName = (asset: string) => ASSET_NAMES[asset] ?? asset
 
@@ -48,6 +56,9 @@ const put = (asset: string, stable: string, maxApr: number, minApr: number): Mar
   asset, chainId: SOLANA, collateral: stable, strike: stable, type: 'put', maxApr, minApr,
 })
 
+/** Placeholder for markets added after the desk went live: they have no made-up APR, only the desk's. */
+const NO_APR = Number.NaN
+
 export const CALLS: Market[] = [
   call('SOL', 'USDC', 140.29, 4.15),
   call('WBTC', 'USDC', 91.56, 2.47),
@@ -59,6 +70,14 @@ export const CALLS: Market[] = [
   call('QQQon', 'USDC', 28.9, 3.12),
   call('SPYon', 'USDC', 22.4, 2.85),
   call('PAXG', 'USDC', 18.42, 3.1),
+  call('AAPLon', 'USDC', NO_APR, NO_APR),
+  call('MSFTon', 'USDC', NO_APR, NO_APR),
+  call('AMZNon', 'USDC', NO_APR, NO_APR),
+  call('GOOGLon', 'USDC', NO_APR, NO_APR),
+  call('METAon', 'USDC', NO_APR, NO_APR),
+  call('NFLXon', 'USDC', NO_APR, NO_APR),
+  call('COINon', 'USDC', NO_APR, NO_APR),
+  call('MSTRon', 'USDC', NO_APR, NO_APR),
   call('JUP', 'USDC', 118.4, 4.62),
   call('PYTH', 'USDC', 112.7, 3.88),
   call('RAY', 'USDC', 123.39, 4.44),
@@ -75,6 +94,14 @@ export const PUTS: Market[] = [
   put('QQQon', 'USDC', 26.4, 3.05),
   put('SPYon', 'USDC', 20.15, 2.7),
   put('PAXG', 'USDC', 16.85, 2.98),
+  put('AAPLon', 'USDC', NO_APR, NO_APR),
+  put('MSFTon', 'USDC', NO_APR, NO_APR),
+  put('AMZNon', 'USDC', NO_APR, NO_APR),
+  put('GOOGLon', 'USDC', NO_APR, NO_APR),
+  put('METAon', 'USDC', NO_APR, NO_APR),
+  put('NFLXon', 'USDC', NO_APR, NO_APR),
+  put('COINon', 'USDC', NO_APR, NO_APR),
+  put('MSTRon', 'USDC', NO_APR, NO_APR),
   put('JUP', 'USDC', 108.2, 4.9),
   put('RAY', 'USDC', 101.3, 4.35),
 ]

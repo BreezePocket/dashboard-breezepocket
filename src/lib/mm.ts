@@ -202,6 +202,14 @@ export function randomNonce(): bigint {
   return new DataView(b.buffer).getBigUint64(0, true)
 }
 
+/** Where a quote-only asset's price comes from, for tooltips and notices. */
+export const priceSource = (venue: string, underlying: string) =>
+  venue === 'deribit'
+    ? `the Deribit ${underlying} option chain`
+    : venue === 'alpaca'
+      ? `${underlying} listed options via Alpaca (indicative feed)`
+      : `${underlying} (${venue})`
+
 export const productLabel = (p: Product) => (p === 'sell_sol' ? 'Covered call' : 'Cash secured put')
 export const productForType = (t: 'call' | 'put'): Product => (t === 'call' ? 'sell_sol' : 'buy_sol')
 export const collateralOf = (p: Product) => (p === 'sell_sol' ? 'SOL' : 'USDC')
