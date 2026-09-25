@@ -23,6 +23,8 @@ const expiryShort = (ts: number) => { const d = new Date(ts * 1000); return `${M
 const pad2 = (n: number) => String(n).padStart(2, '0')
 // The hour comes from the expiry itself: Deribit (SOL) settles at 08:00 UTC, US listed options at the 20:00 UTC close.
 const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC` }
+// Quote source as shown to users: the desk's internal `_synthetic` tag is dropped.
+const sourceLabel = (src: string) => src.replace(/_synthetic$/, '')
 const tone = (apr: number) => (apr > 33 ? 'red' : apr > 20 ? 'amber' : 'green')
 const TYPES: { id: OptionType; label: string }[] = [
   { id: 'call', label: 'Sell high' },
@@ -335,17 +337,10 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
             </div>
           )}
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
-          {mint && (
-            <div className="notice">
-              <b>Devnet test token.</b> {asset} here is a test SPL mint (<a href={explorerAddr(mint)} target="_blank" rel="noopener noreferrer">{mint.slice(0, 4)}…{mint.slice(-4)}</a>)
-              listed on the program. Yields are live from {priceSource(desk?.venue ?? '', desk?.underlying ?? asset)}; the position settles on
-              the {desk?.underlying ?? asset} price posted for the expiry.
-            </div>
-          )}
 
           <div className="ed-prompt">
             <span>
-              Choose the price at which you are happy to {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
+              Choose the price you want to {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
               {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
             </span>
           </div>
@@ -354,7 +349,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
             {cells.map((c) => (
               <li key={c.fixed_price} className={`strike ${strike === c.fixed_price ? 'is-selected' : ''}`} data-tone={tone(c.apr_pct)}>
                 <small className="strike-tag"><span>APR</span><span>{c.apr_pct.toFixed(2)}%</span></small>
-                <button type="button" className="strike-btn" disabled={busy} onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? c.price_source}>
+                <button type="button" className="strike-btn" disabled={busy} onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
                   <strong>{fmtPrice(c.fixed_price)}</strong>
                 </button>
               </li>
@@ -410,7 +405,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 </span>
                 {quote && (
                   <small className="quote-meta">
-                    Binding quote · {quote.instrument ?? quote.price_source} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
+                    Binding quote · {quote.instrument ?? sourceLabel(quote.price_source)} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
                   </small>
                 )}
               </div>
@@ -589,7 +584,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
             {cells.map((c) => (
               <li key={c.fixed_price} className={`strike ${strike === c.fixed_price ? 'is-selected' : ''}`} data-tone={tone(c.apr_pct)}>
                 <small className="strike-tag"><span>APR</span><span>{c.apr_pct.toFixed(2)}%</span></small>
-                <button type="button" className="strike-btn" onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? c.price_source}>
+                <button type="button" className="strike-btn" onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
                   <strong>{fmtPrice(c.fixed_price)}</strong>
                 </button>
               </li>
@@ -608,7 +603,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                       (product === 'sell_sol' && premiumUsd !== null ? ` (≈ ${fmtPrice(premiumUsd)})` : '') + ' · indicative'
                     : 'Select a price to see the premium'}
                 </span>
-                {cell && <small className="quote-meta">{cell.instrument ?? cell.price_source} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${board.fee_pct}%` : ''}</small>}
+                {cell && <small className="quote-meta">{cell.instrument ?? sourceLabel(cell.price_source)} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${board.fee_pct}%` : ''}</small>}
               </div>
               <ul className="payoff-legend" aria-hidden="true">
                 {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}
