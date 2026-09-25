@@ -16,7 +16,7 @@ export type DeskHealth = {
   usdc_mint: string
   dry_run: boolean
   price: { source?: string; spot: number; spotAgeMs: number; vol: number; expiries?: number }
-  /** Every asset the desk prices. Only `tradable` ones can be opened on chain; the rest are quote-only. */
+  /** Every asset the desk prices. Only `tradable` ones (SOL and assets listed on chain) can be opened; the rest are quote-only. */
   assets?: DeskAsset[]
   exposure: {
     totalUsd: number
@@ -34,6 +34,10 @@ export type DeskAsset = {
   spot: number | null
   atm_vol: number | null
   expiries: number | null
+  /** Listed assets only: the SPL mint to trade, its decimals, and the UTC second of day expiries land on. */
+  mint?: string | null
+  decimals?: number | null
+  expiry_time_of_day?: number | null
 }
 export type DeskExpiry = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; strikes: number[] }
 export type BoardCell = {
@@ -53,8 +57,11 @@ export type Board = {
   underlying: string
   venue: string
   tradable: boolean
+  /** The listed SPL mint; null for SOL and quote-only assets. */
+  mint?: string | null
+  decimals?: number
   product: Product
-  /** Collateral: 'sol' for SOL calls, the asset symbol for quote-only calls, 'usdc' for puts. */
+  /** Collateral: 'sol' for SOL calls, the asset symbol for other calls, 'usdc' for puts. */
   token: string
   amount: string
   index_price: number
@@ -82,10 +89,12 @@ export type Quote = {
 export type Decline = { type: 'rfq_decline'; rfq_id: string; reason: string }
 export type SignResponse = { type: 'sign_response'; request_id: string; tx_base64: string; signature?: string }
 export type SignRejection = { type: 'sign_rejection'; request_id: string; reason: string }
-export type FaucetInfo = { enabled: boolean; amount_usdc: number; cooldown_ms: number; usdc_mint: string }
-export type FaucetResult = { pubkey: string; usdc_amount: number; usdc_signature: string; sol_airdrop_signature: string | null }
+export type FaucetInfo = { enabled: boolean; amount_usdc: number; asset_usd?: number; cooldown_ms: number; usdc_mint: string }
+export type FaucetResult = { pubkey: string; asset?: string; amount?: number; usdc_amount: number; usdc_signature: string; sol_airdrop_signature: string | null }
 
 export type RfqRequest = {
+  /** Omitted or 'SOL' for SOL; otherwise a listed asset's symbol. */
+  asset?: string
   product: Product
   fixedPrice: bigint
   expiryTs: number
@@ -139,7 +148,7 @@ export class DeskClient {
   }
 
   health(timeoutMs?: number) { return this.get<DeskHealth>('/health', timeoutMs) }
-  /** Omitting `asset` means SOL, the one tradable asset. */
+  /** Omitting `asset` means SOL. */
   expiries(asset?: string) {
     const q = asset ? `?asset=${encodeURIComponent(asset)}` : ''
     return this.get<{ expiries: DeskExpiry[] }>(`/expiries${q}`).then((r) => r.expiries)
@@ -156,6 +165,7 @@ export class DeskClient {
     return this.post<Quote | Decline>('/rfq', {
       type: 'rfq_request',
       rfq_id: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ...(req.asset && req.asset !== 'SOL' ? { asset: req.asset } : {}),
       product: req.product,
       fixed_price: req.fixedPrice.toString(),
       expiry_ts: req.expiryTs,
@@ -178,7 +188,8 @@ export class DeskClient {
       return null
     }
   }
-  faucet(pubkey: string) { return this.post<FaucetResult>('/faucet', { pubkey }) }
+  /** Test USDC, or the listed `asset`'s test token. */
+  faucet(pubkey: string, asset?: string) { return this.post<FaucetResult>('/faucet', asset ? { pubkey, asset } : { pubkey }) }
 }
 
 /** Try each candidate URL until one answers /health. */

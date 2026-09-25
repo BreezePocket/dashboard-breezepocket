@@ -1,7 +1,9 @@
 /**
  * Browser client for the breezepocket Anchor program on devnet: PDAs, the
- * open_position transaction the desk co-signs, settle, and account reads.
- * Mirrors MM-system/breezepocket-mm/src/program.js so the desk's byte-for-byte
+ * open_position / open_asset_position transaction the desk co-signs, settle, and
+ * account reads. SOL positions hold lamports; every other asset is an SPL token
+ * governance listed on chain, and its positions hold both legs as tokens.
+ * Mirrors MM-system-breezepocket/src/program.js so the desk's byte-for-byte
  * verification of the transaction passes.
  */
 import { AnchorProvider, BN, Program, type Idl } from '@coral-xyz/anchor'
@@ -26,6 +28,12 @@ export type PositionRow = {
   address: PublicKey
   user: PublicKey
   marketMaker: PublicKey
+  /** null for SOL; the listed SPL mint otherwise. */
+  assetMint: PublicKey | null
+  /** 'SOL', or the listed asset's symbol. */
+  symbol: string
+  /** Decimals of the asset leg: 9 for SOL. */
+  decimals: number
   product: Product
   fixedPrice: bigint
   expiryTs: number
@@ -37,6 +45,7 @@ export type PositionRow = {
 }
 export type SettlementPriceRow = { price: bigint; postedTs: number; source: 'poster' | 'governance' }
 export type GlobalConfigRow = { usdcMint: PublicKey; pricePoster: PublicKey; governanceKeys: PublicKey[] }
+export type ListedAsset = { mint: PublicKey; symbol: string; decimals: number; expiryTimeOfDay: number }
 
 const u64le = (n: bigint) => {
   const b = new Uint8Array(8)
@@ -73,9 +82,21 @@ export const positionPda = (user: PublicKey, mm: PublicKey, fixedPrice: bigint, 
     PROGRAM_ID,
   )[0]
 
-/** Settlement prices are keyed by the priced asset (SOL, seed byte 0) and expiry. */
+export const assetPositionPda = (user: PublicKey, mm: PublicKey, mint: PublicKey, fixedPrice: bigint, expiryTs: number, nonce: bigint) =>
+  PublicKey.findProgramAddressSync(
+    [Buffer.from('asset_position'), user.toBuffer(), mm.toBuffer(), mint.toBuffer(), u64le(fixedPrice), i64le(expiryTs), u64le(nonce)],
+    PROGRAM_ID,
+  )[0]
+
+export const assetPda = (mint: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('asset'), mint.toBuffer()], PROGRAM_ID)[0]
+
+/** SOL settlement prices are keyed by the priced asset (SOL, seed byte 0) and expiry. */
 export const settlementPricePda = (expiryTs: number) =>
   PublicKey.findProgramAddressSync([Buffer.from('settlement_price'), Uint8Array.from([0]), i64le(expiryTs)], PROGRAM_ID)[0]
+
+/** A listed asset's settlement price, keyed by its mint and expiry. */
+export const assetPricePda = (mint: PublicKey, expiryTs: number) =>
+  PublicKey.findProgramAddressSync([Buffer.from('asset_price'), mint.toBuffer(), i64le(expiryTs)], PROGRAM_ID)[0]
 
 export const ata = (mint: PublicKey, owner: PublicKey) => getAssociatedTokenAddressSync(mint, owner, true)
 
@@ -93,10 +114,36 @@ export function fetchConfig(connection: Connection): Promise<GlobalConfigRow> {
   return configCache
 }
 
+/** Every asset governance has listed, cached per connection for the session. */
+const listingCache = new WeakMap<Connection, Promise<ListedAsset[]>>()
+export function fetchListedAssets(connection: Connection): Promise<ListedAsset[]> {
+  let p = listingCache.get(connection)
+  if (!p) {
+    p = getProgram(connection)
+      .account.assetConfig.all()
+      .then((rows) =>
+        rows.map((r) => ({
+          mint: r.account.mint,
+          symbol: r.account.symbol,
+          decimals: r.account.decimals,
+          expiryTimeOfDay: Number(r.account.expiryTimeOfDay.toString()),
+        })),
+      )
+      .catch((e) => {
+        listingCache.delete(connection)
+        throw e
+      })
+    listingCache.set(connection, p)
+  }
+  return p
+}
+
 export type OpenParams = {
   user: PublicKey
   mm: PublicKey
   usdcMint: PublicKey
+  /** Set for a listed asset: opens with open_asset_position on this mint. */
+  assetMint?: PublicKey | null
   product: Product
   fixedPrice: bigint
   expiryTs: number
@@ -105,33 +152,51 @@ export type OpenParams = {
   nonce: bigint
 }
 
-/** Unsigned open_position transaction with the market maker as fee payer. */
+/** The position account a quote opens: SOL or listed-asset layout. */
+export const openedPositionPda = (p: Pick<OpenParams, 'user' | 'mm' | 'assetMint' | 'fixedPrice' | 'expiryTs' | 'nonce'>) =>
+  p.assetMint
+    ? assetPositionPda(p.user, p.mm, p.assetMint, p.fixedPrice, p.expiryTs, p.nonce)
+    : positionPda(p.user, p.mm, p.fixedPrice, p.expiryTs, p.nonce)
+
+/** Unsigned open_position (SOL) or open_asset_position transaction with the market maker as fee payer. */
 export async function buildOpenPositionTx(connection: Connection, p: OpenParams): Promise<Transaction> {
   const program = getProgram(connection)
-  const position = positionPda(p.user, p.mm, p.fixedPrice, p.expiryTs, p.nonce)
-  const ix = await program.methods
-    .openPosition({
-      product: PRODUCT_ENUM[p.product] as never,
-      fixedPrice: new BN(p.fixedPrice.toString()),
-      expiryTs: new BN(p.expiryTs),
-      amount: new BN(p.amount.toString()),
-      yieldAmount: new BN(p.yieldAmount.toString()),
-      nonce: new BN(p.nonce.toString()),
-    })
-    .accountsStrict({
-      marketMaker: p.mm,
-      user: p.user,
-      config: CONFIG_PDA,
-      position,
-      usdcMint: p.usdcMint,
-      positionUsdcVault: ata(p.usdcMint, position),
-      userUsdcAta: ata(p.usdcMint, p.user),
-      mmUsdcAta: ata(p.usdcMint, p.mm),
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .instruction()
+  const params = {
+    product: PRODUCT_ENUM[p.product] as never,
+    fixedPrice: new BN(p.fixedPrice.toString()),
+    expiryTs: new BN(p.expiryTs),
+    amount: new BN(p.amount.toString()),
+    yieldAmount: new BN(p.yieldAmount.toString()),
+    nonce: new BN(p.nonce.toString()),
+  }
+  const position = openedPositionPda(p)
+  const shared = {
+    marketMaker: p.mm,
+    user: p.user,
+    config: CONFIG_PDA,
+    position,
+    usdcMint: p.usdcMint,
+    positionUsdcVault: ata(p.usdcMint, position),
+    userUsdcAta: ata(p.usdcMint, p.user),
+    mmUsdcAta: ata(p.usdcMint, p.mm),
+    tokenProgram: TOKEN_PROGRAM_ID,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  }
+  const mint = p.assetMint
+  const ix = mint
+    ? await program.methods
+        .openAssetPosition(params)
+        .accountsStrict({
+          ...shared,
+          asset: assetPda(mint),
+          assetMint: mint,
+          positionAssetVault: ata(mint, position),
+          userAssetAta: ata(mint, p.user),
+          mmAssetAta: ata(mint, p.mm),
+        })
+        .instruction()
+    : await program.methods.openPosition(params).accountsStrict(shared).instruction()
   const tx = new Transaction()
   tx.feePayer = p.mm
   tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash
@@ -142,24 +207,34 @@ export async function buildOpenPositionTx(connection: Connection, p: OpenParams)
 /** Permissionless settle: anyone may call once the price is posted and the dispute window has passed. */
 export async function buildSettleTx(connection: Connection, caller: PublicKey, usdcMint: PublicKey, pos: PositionRow): Promise<Transaction> {
   const program = getProgram(connection)
-  const tx = await program.methods
-    .settle()
-    .accountsStrict({
-      caller,
-      config: CONFIG_PDA,
-      position: pos.address,
-      settlementPrice: settlementPricePda(pos.expiryTs),
-      user: pos.user,
-      marketMaker: pos.marketMaker,
-      usdcMint,
-      positionUsdcVault: ata(usdcMint, pos.address),
-      userUsdcAta: ata(usdcMint, pos.user),
-      mmUsdcAta: ata(usdcMint, pos.marketMaker),
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .transaction()
+  const shared = {
+    caller,
+    config: CONFIG_PDA,
+    position: pos.address,
+    user: pos.user,
+    marketMaker: pos.marketMaker,
+    usdcMint,
+    positionUsdcVault: ata(usdcMint, pos.address),
+    userUsdcAta: ata(usdcMint, pos.user),
+    mmUsdcAta: ata(usdcMint, pos.marketMaker),
+    tokenProgram: TOKEN_PROGRAM_ID,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  }
+  const mint = pos.assetMint
+  const tx = mint
+    ? await program.methods
+        .settleAssetPosition()
+        .accountsStrict({
+          ...shared,
+          settlementPrice: assetPricePda(mint, pos.expiryTs),
+          assetMint: mint,
+          positionAssetVault: ata(mint, pos.address),
+          userAssetAta: ata(mint, pos.user),
+          mmAssetAta: ata(mint, pos.marketMaker),
+        })
+        .transaction()
+    : await program.methods.settle().accountsStrict({ ...shared, settlementPrice: settlementPricePda(pos.expiryTs) }).transaction()
   tx.feePayer = caller
   tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash
   return tx
@@ -167,15 +242,31 @@ export async function buildSettleTx(connection: Connection, caller: PublicKey, u
 
 const USER_OFFSET = 8 // account discriminator
 
+/** SOL and listed-asset positions for a user, soonest expiry first. */
 export async function fetchPositionsForUser(connection: Connection, user: PublicKey): Promise<PositionRow[]> {
-  const rows = await getProgram(connection).account.positionAccount.all([{ memcmp: { offset: USER_OFFSET, bytes: user.toBase58() } }])
+  const program = getProgram(connection)
+  const filter = [{ memcmp: { offset: USER_OFFSET, bytes: user.toBase58() } }]
+  const [sol, assets, listed] = await Promise.all([
+    program.account.positionAccount.all(filter),
+    program.account.assetPosition.all(filter),
+    fetchListedAssets(connection).catch(() => [] as ListedAsset[]),
+  ])
+  const bySymbol = new Map(listed.map((l) => [l.mint.toBase58(), l]))
+  const rows = [
+    ...sol.map((r) => ({ publicKey: r.publicKey, account: { ...r.account, assetMint: null as PublicKey | null } })),
+    ...assets.map((r) => ({ publicKey: r.publicKey, account: r.account as typeof r.account & { assetMint: PublicKey | null } })),
+  ]
   return rows
     .map((r) => {
       const a = r.account
+      const listing = a.assetMint ? bySymbol.get(a.assetMint.toBase58()) : null
       return {
         address: r.publicKey,
         user: a.user,
         marketMaker: a.marketMaker,
+        assetMint: a.assetMint,
+        symbol: a.assetMint ? listing?.symbol ?? `${a.assetMint.toBase58().slice(0, 4)}…` : 'SOL',
+        decimals: listing?.decimals ?? 9,
         product: ('sellSol' in (a.product as object) ? 'sell_sol' : 'buy_sol') as Product,
         fixedPrice: BigInt(a.fixedPrice.toString()),
         expiryTs: Number(a.expiryTs.toString()),
@@ -189,8 +280,12 @@ export async function fetchPositionsForUser(connection: Connection, user: Public
     .sort((x, y) => x.expiryTs - y.expiryTs)
 }
 
-export async function fetchSettlementPrice(connection: Connection, expiryTs: number): Promise<SettlementPriceRow | null> {
-  const acc = await getProgram(connection).account.settlementPrice.fetchNullable(settlementPricePda(expiryTs))
+/** The posted price for SOL at an expiry, or for a listed asset when `mint` is given. */
+export async function fetchSettlementPrice(connection: Connection, expiryTs: number, mint?: PublicKey | null): Promise<SettlementPriceRow | null> {
+  const program = getProgram(connection)
+  const acc = mint
+    ? await program.account.assetSettlementPrice.fetchNullable(assetPricePda(mint, expiryTs))
+    : await program.account.settlementPrice.fetchNullable(settlementPricePda(expiryTs))
   if (!acc) return null
   return {
     price: BigInt(acc.price.toString()),
@@ -203,7 +298,12 @@ export async function fetchSettlementPrice(connection: Connection, expiryTs: num
 export const exchangeHappens = (product: Product, settlement: bigint, fixed: bigint) =>
   product === 'sell_sol' ? settlement >= fixed : settlement <= fixed
 
+/** Settlement prices are per asset and expiry; this is the key usePositions stores them under. */
+export const priceKey = (p: Pick<PositionRow, 'assetMint' | 'expiryTs'>) => `${p.assetMint?.toBase58() ?? 'SOL'}:${p.expiryTs}`
+
 /** Human-readable conversions. */
+export const toUnits = (n: bigint, decimals: number) => Number(n) / 10 ** decimals
+export const fromUnits = (x: number, decimals: number) => BigInt(Math.round(x * 10 ** decimals))
 export const lamportsToSol = (n: bigint) => Number(n) / 1e9
 export const baseToUsdc = (n: bigint) => Number(n) / 1e6
 export const solToLamports = (sol: number) => BigInt(Math.round(sol * 1e9))

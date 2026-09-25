@@ -14,7 +14,7 @@ import {
   collateralOf, priceSource, productForType, productLabel, randomNonce,
   type Board, type BoardCell, type DeskExpiry, type FaucetInfo, type Product, type Quote,
 } from '../lib/mm'
-import { buildOpenPositionTx, positionPda, solToLamports, usdcToBase, priceToBase, lamportsToSol, baseToUsdc } from '../lib/program'
+import { buildOpenPositionTx, openedPositionPda, usdcToBase, priceToBase, baseToUsdc, toUnits, fromUnits } from '../lib/program'
 import { explorerAddr, explorerTx } from '../lib/config'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -53,10 +53,28 @@ export default function EarnDetail() {
   const asset = params.get('asset') || 'SOL'
   const type = (params.get('type') === 'put' ? 'put' : 'call') as OptionType
   const expiryParam = Number(params.get('expiry')) || null
-  if (asset === 'SOL') return <LiveSolMarket type={type} expiryParam={expiryParam} />
-  // Anything else is live only if the desk prices it; QuoteOnlyMarket falls back to ComingSoon when it does not.
+  if (asset === 'SOL') return <LiveMarket asset="SOL" mint={null} decimals={9} type={type} expiryParam={expiryParam} />
+  return <AssetMarket asset={asset} type={type} expiryParam={expiryParam} />
+}
+
+/**
+ * Any other asset trades once governance has listed its SPL mint on chain (the desk
+ * reports it as tradable with a mint); a priced but unlisted one is quote-only, and
+ * QuoteOnlyMarket falls back to ComingSoon when the desk does not price it at all.
+ */
+function AssetMarket({ asset, type, expiryParam }: { asset: string; type: OptionType; expiryParam: number | null }) {
+  const { health } = useDesk()
+  const desk = health?.assets?.find((a) => a.asset === asset) ?? null
+  if (desk?.tradable && desk.mint) {
+    return <LiveMarket key={asset} asset={asset} mint={desk.mint} decimals={desk.decimals ?? 9} type={type} expiryParam={expiryParam} />
+  }
   return <QuoteOnlyMarket asset={asset} type={type} expiryParam={expiryParam} />
 }
+
+/** A default sell size, rounded to two significant figures. */
+const niceAmount = (x: number) => Number(x.toPrecision(2))
+/** The +/- step for an amount: one power of ten below its leading digit. */
+const stepFor = (x: number) => 10 ** Math.floor(Math.log10(x))
 
 /* ---------------------------------------------------------------------------------------- */
 
@@ -89,8 +107,8 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
             <img src={iconFor(asset)} alt="" />
             <h2>{assetName(asset)} is not live on devnet yet</h2>
             <p>
-              The breezepocket program currently settles SOL commitments only. {asset} {type === 'call' ? 'Sell High' : 'Buy Low'} markets are
-              on the roadmap and will use the same market maker, expiries and settlement flow once the asset is listed.
+              The market maker does not price {asset} yet, so there is no {type === 'call' ? 'Sell High' : 'Buy Low'} market for it. Once it
+              is priced and listed on chain it uses the same market maker, expiries and settlement flow as every other asset.
             </p>
             <div className="soon-links">
               <Link className="btn-earn" to={marketHref(findMarket('SOL', 'call'))}><span className="ic"><img src={iconFor('SOL')} alt="" /></span>SOL Sell high</Link>
@@ -105,20 +123,28 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
 
 /* ---------------------------------------------------------------------------------------- */
 
-function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: number | null }) {
+/**
+ * A tradable market: SOL (`mint` null, lamports on the position) or an SPL asset
+ * governance listed on chain (`mint`, opened with open_asset_position). The desk
+ * quotes, the user signs, the desk co-signs, and the position settles on chain.
+ */
+function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: string; mint: string | null; decimals: number; type: OptionType; expiryParam: number | null }) {
   const navigate = useNavigate()
   const product = productForType(type)
-  const collateral = collateralOf(product)
+  const isSol = mint === null
+  const collateral = isSol ? collateralOf(product) : product === 'sell_sol' ? asset : 'USDC'
+  const assetMint = useMemo(() => (mint ? new PublicKey(mint) : null), [mint])
   const { client, health, status } = useDesk()
+  const desk = health?.assets?.find((a) => a.asset === asset) ?? null
   const { connection } = useConnection()
   const { publicKey, connected, signTransaction } = useWallet()
   const { setVisible } = useWalletModal()
-  const balances = useBalances()
+  const balances = useBalances(undefined, assetMint)
 
   const [expiries, setExpiries] = useState<DeskExpiry[]>([])
   const [board, setBoard] = useState<Board | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
-  const [amount, setAmount] = useState(product === 'sell_sol' ? '1' : '100')
+  const [amount, setAmount] = useState(product === 'sell_sol' ? (isSol ? '1' : '') : '100')
   const [strike, setStrike] = useState<number | null>(null)
   const [flow, setFlow] = useState<Flow>({ step: 'idle' })
   const [now, setNow] = useState(Date.now())
@@ -127,9 +153,13 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
   const lastQuote = useRef<Extract<Flow, { step: 'quoted' }> | null>(null)
 
   const expiryTs = expiryParam && expiries.some((e) => e.expiry_ts === expiryParam) ? expiryParam : expiries[0]?.expiry_ts ?? null
-  const spot = health?.price.spot ?? board?.index_price ?? null
+  const spot = (isSol ? health?.price.spot : desk?.spot) ?? board?.index_price ?? null
   const qty = Math.max(0, parseFloat(amount) || 0)
-  const amountBase = product === 'sell_sol' ? solToLamports(qty) : usdcToBase(qty)
+  const amountBase = product === 'sell_sol' ? fromUnits(qty, decimals) : usdcToBase(qty)
+  // Sell size: 1 SOL, or about $100 of any other asset once its price is known.
+  const sellDefault = isSol ? 1 : spot ? niceAmount(100 / spot) : null
+  const step = product === 'sell_sol' ? (isSol ? 0.1 : sellDefault ? stepFor(sellDefault) : 0.1) : 10
+  const sellDigits = isSol ? 4 : 6
 
   // Live expiries and yield board from the desk, refreshed every 30s.
   useEffect(() => {
@@ -137,7 +167,10 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
     let cancelled = false
     const load = async () => {
       try {
-        const [ex, bd] = await Promise.all([client.expiries(), client.board({ product, maxDays: 90 })])
+        const [ex, bd] = await Promise.all([
+          client.expiries(isSol ? undefined : asset),
+          client.board({ asset: isSol ? undefined : asset, product, maxDays: 90 }),
+        ])
         if (cancelled) return
         setExpiries(ex)
         setBoard(bd)
@@ -149,10 +182,14 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
     load()
     const id = setInterval(load, 30_000)
     return () => { cancelled = true; clearInterval(id) }
-  }, [client, product])
+  }, [client, product, asset, isSol])
 
   useEffect(() => { client?.faucetInfo().then(setFaucet) }, [client])
-  useEffect(() => { setAmount(product === 'sell_sol' ? '1' : '100') }, [product])
+  // Reset the size when the product changes, and once the asset's price first lands.
+  const hasDefault = sellDefault !== null
+  useEffect(() => {
+    setAmount(product === 'sell_sol' ? (sellDefault !== null ? String(sellDefault) : '') : '100')
+  }, [product, hasDefault])
   useEffect(() => { setStrike(null); setFlow({ step: 'idle' }); lastQuote.current = null }, [product, expiryTs])
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
@@ -176,7 +213,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
     const fixedPrice = priceToBase(strike)
     setFlow((f) => (f.step === 'quoted' ? f : { step: 'quoting' }))
     try {
-      const res = await client.rfq({ product, fixedPrice, expiryTs, amount: amountBase, userPubkey: publicKey.toBase58(), nonce })
+      const res = await client.rfq({ asset, product, fixedPrice, expiryTs, amount: amountBase, userPubkey: publicKey.toBase58(), nonce })
       if (res.type === 'rfq_decline') { lastQuote.current = null; setFlow({ step: 'declined', reason: res.reason }); return }
       const q: Extract<Flow, { step: 'quoted' }> = { step: 'quoted', quote: res, nonce, fixedPrice, amount: amountBase, expiryTs, product }
       lastQuote.current = q
@@ -184,7 +221,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
     } catch (e) {
       setFlow({ step: 'error', message: `Quote failed: ${friendly(e)}` })
     }
-  }, [client, publicKey, expiryTs, strike, qty, product, amountBase])
+  }, [client, publicKey, expiryTs, strike, qty, product, amountBase, asset])
 
   useEffect(() => {
     if (busy) return
@@ -199,11 +236,11 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 
   const quote = flow.step === 'quoted' ? flow.quote : null
   const yieldHuman = quote
-    ? product === 'sell_sol' ? lamportsToSol(BigInt(quote.yield_amount)) : baseToUsdc(BigInt(quote.yield_amount))
+    ? product === 'sell_sol' ? toUnits(BigInt(quote.yield_amount), decimals) : baseToUsdc(BigInt(quote.yield_amount))
     : cell ? (cell.yield_pct / 100) * qty : null
   const apr = quote?.apr_pct ?? cell?.apr_pct ?? null
   const ttl = quote ? Math.max(0, Math.ceil((quote.valid_until - now) / 1000)) : null
-  const balance = product === 'sell_sol' ? balances.sol : balances.usdc
+  const balance = product === 'sell_sol' ? (isSol ? balances.sol : balances.asset) : balances.usdc
   const insufficient = connected && balance !== null && qty > balance
   const capUsed = health && expiryTs ? (health.exposure.perExpiry[String(expiryTs)]?.onChainUsd ?? 0) + (health.exposure.perExpiry[String(expiryTs)]?.reservedUsd ?? 0) : 0
   const capPct = health ? Math.min(100, (capUsed / health.exposure.capPerExpiryUsd) * 100) : 0
@@ -218,7 +255,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
       setFlow({ step: 'signing' })
       const mm = new PublicKey(q.quote.mm_pubkey)
       const tx = await buildOpenPositionTx(connection, {
-        user: publicKey, mm, usdcMint: new PublicKey(health.usdc_mint), product: q.product,
+        user: publicKey, mm, usdcMint: new PublicKey(health.usdc_mint), assetMint, product: q.product,
         fixedPrice: q.fixedPrice, expiryTs: q.expiryTs, amount: q.amount, yieldAmount: BigInt(q.quote.yield_amount), nonce: q.nonce,
       })
       const signed = await signTransaction(tx)
@@ -236,7 +273,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
       const bh = await connection.getLatestBlockhash('confirmed')
       const conf = await connection.confirmTransaction({ signature, ...bh }, 'confirmed')
       if (conf.value.err) throw new Error(`Transaction failed on chain: ${JSON.stringify(conf.value.err)}`)
-      const position = positionPda(publicKey, mm, q.fixedPrice, q.expiryTs, q.nonce).toBase58()
+      const position = openedPositionPda({ user: publicKey, mm, assetMint, fixedPrice: q.fixedPrice, expiryTs: q.expiryTs, nonce: q.nonce }).toBase58()
       setFlow({ step: 'done', signature, position })
       balances.refresh()
     } catch (e) {
@@ -244,12 +281,14 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
     }
   }
 
+  // Selling a listed asset needs its test token; everything else needs test USDC.
+  const faucetToken = product === 'sell_sol' && !isSol ? asset : 'USDC'
   const claimFaucet = async () => {
     if (!client || !publicKey) { setVisible(true); return }
-    setFaucetMsg('Minting test USDC…')
+    setFaucetMsg(`Minting test ${faucetToken}…`)
     try {
-      const r = await client.faucet(publicKey.toBase58())
-      setFaucetMsg(`Minted ${r.usdc_amount} test USDC${r.sol_airdrop_signature ? ' and requested a SOL airdrop' : ''}.`)
+      const r = await client.faucet(publicKey.toBase58(), faucetToken === 'USDC' ? undefined : faucetToken)
+      setFaucetMsg(`Minted ${r.amount ?? r.usdc_amount} test ${r.asset ?? 'USDC'}${r.sol_airdrop_signature ? ' and requested a SOL airdrop' : ''}.`)
       setTimeout(balances.refresh, 2500)
     } catch (e) {
       setFaucetMsg(friendly(e))
@@ -258,27 +297,30 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 
   const reset = () => { setFlow({ step: 'idle' }); lastQuote.current = null; setStrike(null) }
   const label = expiryTs ? expiryShort(expiryTs) : '…'
-  const under = 'SOL'
+  const under = asset
+  const source = isSol
+    ? 'Deribit sol_usdc index, the price the program settles against'
+    : `${desk?.underlying ?? asset} spot, from ${priceSource(desk?.venue ?? '', desk?.underlying ?? asset)}`
 
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/SOL/${collateral}/${label}`}>
+      <Terminal title={`~/earn/${asset}/${collateral}/${label}`}>
         <div className="ed-head">
           <HeaderChips
-            asset="SOL"
+            asset={asset}
             type={type}
             extra={
               <Dropdown
                 label="Expiry"
                 value={expiryTs ? String(expiryTs) : ''}
                 options={expiries.map((e) => ({ id: String(e.expiry_ts), label: `${expiryShort(e.expiry_ts)} · ${Math.round(e.days)}d` }))}
-                onChange={(id) => navigate(marketHref(findMarket('SOL', type), id))}
+                onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
               />
             }
           />
           <div className="ed-head-group">
-            <span className="ed-price" title="Deribit sol_usdc index, the price the program settles against">{spot ? fmtPrice(spot) : '—'}</span>
+            <span className="ed-price" title={source}>{spot ? fmtPrice(spot) : '—'}</span>
             <div className="gauge" title={health ? `${capUsed.toFixed(0)} of ${health.exposure.capPerExpiryUsd} USD desk capacity used for this expiry` : 'Desk capacity'}>
               <div className="gauge-arc" style={{ ['--deg' as string]: `${(capPct / 100) * 180}deg` }} />
               <small>{capPct.toFixed(0)}% of cap</small>
@@ -293,10 +335,17 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
             </div>
           )}
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
+          {mint && (
+            <div className="notice">
+              <b>Devnet test token.</b> {asset} here is a test SPL mint (<a href={explorerAddr(mint)} target="_blank" rel="noopener noreferrer">{mint.slice(0, 4)}…{mint.slice(-4)}</a>)
+              listed on the program. Yields are live from {priceSource(desk?.venue ?? '', desk?.underlying ?? asset)}; the position settles on
+              the {desk?.underlying ?? asset} price posted for the expiry.
+            </div>
+          )}
 
           <div className="ed-prompt">
             <span>
-              Choose the price at which you are happy to {type === 'call' ? 'sell' : 'buy'} SOL on {expiryTs ? expiryLong(expiryTs) : '…'}
+              Choose the price at which you are happy to {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
               {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
             </span>
           </div>
@@ -315,10 +364,10 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 
           <div className="amount">
             <div className="amount-left">
-              <small className="amount-max" onClick={() => balance !== null && setAmount(String(Math.max(0, product === 'sell_sol' ? Math.floor((balance - 0.01) * 1e4) / 1e4 : Math.floor(balance * 100) / 100)))}>MAX</small>
+              <small className="amount-max" onClick={() => balance !== null && setAmount(String(Math.max(0, product === 'sell_sol' ? (isSol ? Math.floor((balance - 0.01) * 1e4) / 1e4 : Math.floor(balance * 1e6) / 1e6) : Math.floor(balance * 100) / 100)))}>MAX</small>
               <div className="amount-steps">
-                <button type="button" onClick={() => setAmount((a) => String(+((parseFloat(a) || 0) + (product === 'sell_sol' ? 0.1 : 10)).toFixed(4)))} aria-label="Increase">+</button>
-                <button type="button" onClick={() => setAmount((a) => String(Math.max(0, +((parseFloat(a) || 0) - (product === 'sell_sol' ? 0.1 : 10)).toFixed(4))))} aria-label="Decrease">-</button>
+                <button type="button" onClick={() => setAmount((a) => String(+((parseFloat(a) || 0) + step).toFixed(sellDigits)))} aria-label="Increase">+</button>
+                <button type="button" onClick={() => setAmount((a) => String(Math.max(0, +((parseFloat(a) || 0) - step).toFixed(sellDigits))))} aria-label="Decrease">-</button>
               </div>
               <input id="quantity" name="quantity" inputMode="decimal" autoComplete="off" placeholder="amount to deposit" value={amount} disabled={busy}
                 onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} />
@@ -326,7 +375,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
             <div className="amount-right">
               <div>
                 <label htmlFor="quantity">{collateral}</label>
-                <small>{connected && balance !== null ? fmtNum(balance, product === 'sell_sol' ? 4 : 2) : '—'}</small>
+                <small>{connected && balance !== null ? fmtNum(balance, product === 'sell_sol' ? sellDigits : 2) : '—'}</small>
               </div>
               <div className="coin">
                 <img src={iconFor(collateral)} alt="" />
@@ -337,8 +386,13 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
           <div className="amount-foot">
             <small className="warn" style={{ opacity: insufficient ? 1 : 0 }}>INSUFFICIENT BALANCE</small>
             {faucet?.enabled && (
-              <button type="button" className="faucet-btn" onClick={claimFaucet} title={`Mints ${faucet.amount_usdc} test USDC and requests devnet SOL for your wallet`}>
-                <small>GET TEST USDC + SOL</small>
+              <button
+                type="button"
+                className="faucet-btn"
+                onClick={claimFaucet}
+                title={faucetToken === 'USDC' ? `Mints ${faucet.amount_usdc} test USDC and requests devnet SOL for your wallet` : `Mints about $${faucet.asset_usd ?? 1000} of test ${faucetToken} and requests devnet SOL for your wallet`}
+              >
+                <small>GET TEST {faucetToken.toUpperCase()} + SOL</small>
               </button>
             )}
           </div>
@@ -351,7 +405,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
                 <span><span className="big">{apr !== null ? `${apr.toFixed(2)}%` : '--'}</span> APR</span>
                 <span>
                   {yieldHuman !== null && qty > 0
-                    ? `${fmtNum(yieldHuman, product === 'sell_sol' ? 6 : 2)} ${collateral} upfront${quote ? '' : ' (indicative)'}`
+                    ? `${fmtNum(yieldHuman, product === 'sell_sol' ? (isSol ? 6 : 8) : 2)} ${collateral} upfront${quote ? '' : ' (indicative)'}`
                     : 'Select a price to see your premium'}
                 </span>
                 {quote && (
@@ -370,7 +424,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
                 <>
                   <div>
                     <small>If {under} <b>BELOW</b> {strike ? fmtPrice(strike) : '--'}</small>
-                    <strong><img src={iconFor('SOL')} alt="" />Get {fmtNum(qty, 4)} SOL back</strong>
+                    <strong><img src={iconFor(asset)} alt="" />Get {fmtNum(qty, sellDigits)} {asset} back</strong>
                   </div>
                   <div>
                     <small>If {under} <b>ABOVE</b> {strike ? fmtPrice(strike) : '--'}</small>
@@ -385,7 +439,7 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
                   </div>
                   <div>
                     <small>If {under} <b>BELOW</b> {strike ? fmtPrice(strike) : '--'}</small>
-                    <strong><img src={iconFor('SOL')} alt="" />Receive {strike ? fmtNum(qty / strike, 4) : '--'} SOL</strong>
+                    <strong><img src={iconFor(asset)} alt="" />Receive {strike ? fmtNum(qty / strike, sellDigits) : '--'} {asset}</strong>
                   </div>
                 </>
               )}
@@ -427,9 +481,9 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
 /* ---------------------------------------------------------------------------------------- */
 
 /**
- * A market the desk prices but the program cannot settle: WBTC and WETH from Deribit, the
- * tokenized equities from US listed options via Alpaca. Same strike ladder and payoff preview as SOL, but read-only:
- * there is no RFQ and no transaction, because the desk declines to trade anything but SOL.
+ * A market the desk prices but governance has not listed on chain yet. Same strike
+ * ladder and payoff preview as a live market, but read-only: there is no RFQ and no
+ * transaction, because the desk declines to trade an unlisted asset.
  */
 function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: OptionType; expiryParam: number | null }) {
   const navigate = useNavigate()
@@ -510,7 +564,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
             }
           />
           <div className="ed-head-group">
-            <span className="tag-quote" title="Live indicative quote; not tradable on devnet">QUOTE</span>
+            <span className="tag-quote" title="Live indicative quote; not listed on the devnet program yet">QUOTE</span>
             <span className="ed-price" title={`${under} spot, from ${desk?.venue === 'deribit' ? `the Deribit ${under.toLowerCase()}_usdc index` : desk?.venue === 'prestocks' ? 'the PreStocks token price' : 'Alpaca'}`}>{spot ? fmtPrice(spot) : '—'}</span>
           </div>
         </div>
@@ -520,8 +574,8 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
           <div className="notice">
             <b>Quote only.</b> Live prices from {source}
-            {desk?.atm_vol ? (desk.venue === 'prestocks' ? `, flat synthetic vol ${(desk.atm_vol * 100).toFixed(0)}%` : `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%`) : ''}. The devnet program settles SOL alone, so a {asset} position
-            cannot be opened yet.
+            {desk?.atm_vol ? (desk.venue === 'prestocks' ? `, flat synthetic vol ${(desk.atm_vol * 100).toFixed(0)}%` : `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%`) : ''}. {asset} is not listed on the devnet program yet, so a position
+            cannot be opened.
           </div>
 
           <div className="ed-prompt">
@@ -589,7 +643,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
           </div>
 
           <div className="ed-cta">
-            <button type="button" className="btn btn-primary" disabled title="The devnet program settles SOL only">
+            <button type="button" className="btn btn-primary" disabled title={`${asset} is not listed on the devnet program yet`}>
               Quote only · not tradable on devnet
             </button>
           </div>

@@ -9,7 +9,7 @@ import { useDesk } from '../components/DeskProvider'
 import { usePositions } from '../hooks/usePositions'
 import { shortAddr } from '../components/WalletButton'
 import { iconFor, fmtNum, fmtPrice } from '../data/markets'
-import { DISPUTE_WINDOW_SECS, baseToUsdc, buildSettleTx, exchangeHappens, fetchConfig, lamportsToSol, type PositionRow, type SettlementPriceRow } from '../lib/program'
+import { DISPUTE_WINDOW_SECS, baseToUsdc, buildSettleTx, exchangeHappens, fetchConfig, lamportsToSol, priceKey, toUnits, type PositionRow, type SettlementPriceRow } from '../lib/program'
 import { explorerAddr } from '../lib/config'
 
 type Tab = 'positions' | 'total' | 'history'
@@ -21,7 +21,11 @@ const TABS = [
 const COLS = ['Asset', 'Chain', 'Type', 'Maturity', 'Size', 'Notional', 'Strike', 'Yield', 'Income', 'Current Price', 'Target', 'Outcome']
 
 const dateShort = (ts: number) => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-const notionalUsd = (p: PositionRow) => (p.product === 'sell_sol' ? lamportsToSol(p.userCollateral) * (Number(p.fixedPrice) / 1e6) : baseToUsdc(p.userCollateral))
+const notionalUsd = (p: PositionRow) => (p.product === 'sell_sol' ? toUnits(p.userCollateral, p.decimals) * (Number(p.fixedPrice) / 1e6) : baseToUsdc(p.userCollateral))
+/** Sell positions lock and earn the asset (SOL or a listed token); buy positions lock and earn USDC. */
+const legSymbol = (p: PositionRow) => (p.product === 'sell_sol' ? p.symbol : 'USDC')
+const legAmount = (p: PositionRow, n: bigint) => (p.product === 'sell_sol' ? toUnits(n, p.decimals) : baseToUsdc(n))
+const legDigits = (p: PositionRow) => (p.product === 'sell_sol' ? (p.symbol === 'SOL' ? 4 : 6) : 2)
 const yieldPct = (p: PositionRow) => (Number(p.yieldAmount) / Number(p.userCollateral)) * 100
 
 type Outcome = { label: string; tone: 'open' | 'kept' | 'exchanged' | 'settled' | 'wait'; settleable: boolean }
@@ -56,21 +60,28 @@ export default function Dashboard() {
 
   const nowTs = Math.floor(Date.now() / 1000)
   const spot = health?.price.spot ?? null
+  /** Live spot per symbol from the desk, for listed assets' current price and income. */
+  const spotOf = (symbol: string) => (symbol === 'SOL' ? spot : health?.assets?.find((a) => a.asset === symbol)?.spot ?? null)
   const open = positions.filter((p) => !p.settled)
   const settled = positions.filter((p) => p.settled)
   const shown = tab === 'history' ? settled : open
   const who = viewing ? `${shortAddr(viewing.toBase58())}${readOnly ? ' (read-only)' : ''}` : 'wallet not connected'
 
   const totals = useMemo(() => {
-    const t = { yieldSol: 0, yieldUsdc: 0, lockedSol: 0, lockedUsdc: 0, notional: 0 }
+    // Yield and locked amounts in other listed assets are kept per symbol.
+    const t = { yieldSol: 0, yieldUsdc: 0, lockedSol: 0, lockedUsdc: 0, notional: 0, yieldAssets: {} as Record<string, number> }
     for (const p of positions) {
-      if (p.product === 'sell_sol') { t.yieldSol += lamportsToSol(p.yieldAmount); if (!p.settled) t.lockedSol += lamportsToSol(p.userCollateral) }
+      if (p.product === 'sell_sol' && p.symbol === 'SOL') { t.yieldSol += lamportsToSol(p.yieldAmount); if (!p.settled) t.lockedSol += lamportsToSol(p.userCollateral) }
+      else if (p.product === 'sell_sol') t.yieldAssets[p.symbol] = (t.yieldAssets[p.symbol] ?? 0) + toUnits(p.yieldAmount, p.decimals)
       else { t.yieldUsdc += baseToUsdc(p.yieldAmount); if (!p.settled) t.lockedUsdc += baseToUsdc(p.userCollateral) }
       if (!p.settled) t.notional += notionalUsd(p)
     }
     return t
   }, [positions])
-  const incomeUsd = spot ? totals.yieldSol * spot + totals.yieldUsdc : null
+  const assetYieldUsd = Object.entries(totals.yieldAssets).map(([sym, n]) => { const px = spotOf(sym); return px === null ? null : n * px })
+  const incomeUsd = spot && assetYieldUsd.every((v) => v !== null)
+    ? totals.yieldSol * spot + totals.yieldUsdc + assetYieldUsd.reduce<number>((a, v) => a + (v ?? 0), 0)
+    : null
 
   const byExpiry = useMemo(() => {
     const m = new Map<number, number>()
@@ -109,6 +120,9 @@ export default function Dashboard() {
               <div className="dash-split">
                 <div><img src={iconFor('SOL')} alt="" /><b>{fmtNum(totals.yieldSol, 6)}</b> SOL</div>
                 <div><img src={iconFor('USDC')} alt="" /><b>{fmtNum(totals.yieldUsdc)}</b> USDC</div>
+                {Object.entries(totals.yieldAssets).map(([sym, n]) => (
+                  <div key={sym}><img src={iconFor(sym)} alt="" /><b>{fmtNum(n, 6)}</b> {sym}</div>
+                ))}
               </div>
               <small className="dash-foot">{positions.length} position{positions.length === 1 ? '' : 's'} · {open.length} open · ${fmtNum(totals.notional, 0)} notional at target</small>
             </div>
@@ -165,14 +179,15 @@ export default function Dashboard() {
             <div className="tbl" style={{ gridTemplateColumns: `repeat(${COLS.length}, minmax(max-content, 1fr))` }}>
               {COLS.map((c, i) => <div key={c} className={`tbl-h ${i === 0 ? 'sticky' : 'end'} ${c === 'Income' ? 'bold' : ''}`} style={{ paddingLeft: 16, paddingRight: 16 }}>{c}</div>)}
               {shown.map((p) => {
-                const price = prices[p.expiryTs]
+                const price = prices[priceKey(p)]
                 const o = outcomeOf(p, price, nowTs)
-                const coll = p.product === 'sell_sol' ? `${fmtNum(lamportsToSol(p.userCollateral), 4)} SOL` : `${fmtNum(baseToUsdc(p.userCollateral))} USDC`
-                const income = p.product === 'sell_sol' ? `${fmtNum(lamportsToSol(p.yieldAmount), 6)} SOL` : `${fmtNum(baseToUsdc(p.yieldAmount))} USDC`
+                const coll = `${fmtNum(legAmount(p, p.userCollateral), legDigits(p))} ${legSymbol(p)}`
+                const income = `${fmtNum(legAmount(p, p.yieldAmount), p.product === 'sell_sol' ? 6 : 2)} ${legSymbol(p)}`
+                const live = spotOf(p.symbol)
                 return (
                   <ul className="tbl-row" key={p.address.toBase58()}>
                     <li className="tbl-c sticky" style={{ paddingLeft: 16 }}>
-                      <div className="asset"><img src={iconFor('SOL')} alt="" /><div className="asset-id"><b>SOL</b><small><a href={explorerAddr(p.address.toBase58())} target="_blank" rel="noopener noreferrer">{shortAddr(p.address.toBase58())}</a></small></div></div>
+                      <div className="asset"><img src={iconFor(p.symbol)} alt="" /><div className="asset-id"><b>{p.symbol}</b><small><a href={explorerAddr(p.address.toBase58())} target="_blank" rel="noopener noreferrer">{shortAddr(p.address.toBase58())}</a></small></div></div>
                     </li>
                     <li className="tbl-c end"><div className="chain"><img src="/icons/solana.svg" alt="" /><span>Solana</span></div></li>
                     <li className="tbl-c end">{p.product === 'sell_sol' ? 'Sell high' : 'Buy low'}</li>
@@ -182,7 +197,7 @@ export default function Dashboard() {
                     <li className="tbl-c end">{fmtPrice(Number(p.fixedPrice) / 1e6)}</li>
                     <li className="tbl-c end"><span className="apr">{yieldPct(p).toFixed(3)}%</span></li>
                     <li className="tbl-c end"><b>{income}</b></li>
-                    <li className="tbl-c end">{price ? fmtPrice(Number(price.price) / 1e6) : spot ? fmtPrice(spot) : '—'}</li>
+                    <li className="tbl-c end">{price ? fmtPrice(Number(price.price) / 1e6) : live ? fmtPrice(live) : '—'}</li>
                     <li className="tbl-c end">{fmtPrice(Number(p.fixedPrice) / 1e6)}</li>
                     <li className="tbl-c end">
                       <span className={`outcome outcome-${o.tone}`}>{o.label}</span>
@@ -202,7 +217,7 @@ export default function Dashboard() {
           </div>
         )}
         {settled.length > 0 && tab === 'history' && (
-          <div className="dash-note">Settled positions keep their account on chain; the USDC vault rent was refunded to the market maker.</div>
+          <div className="dash-note">Settled positions keep their account on chain; the vault rent was refunded to the market maker.</div>
         )}
       </Terminal>
     </section>
