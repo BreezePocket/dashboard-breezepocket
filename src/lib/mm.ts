@@ -16,12 +16,24 @@ export type DeskHealth = {
   usdc_mint: string
   dry_run: boolean
   price: { source?: string; spot: number; spotAgeMs: number; vol: number; expiries?: number }
+  /** Every asset the desk prices. Only `tradable` ones can be opened on chain; the rest are quote-only. */
+  assets?: DeskAsset[]
   exposure: {
     totalUsd: number
     capTotalUsd: number
     capPerExpiryUsd: number
     perExpiry: Record<string, { onChainUsd: number; reservedUsd: number }>
   }
+}
+export type DeskAsset = {
+  asset: string
+  underlying: string
+  venue: string
+  tradable: boolean
+  fresh: boolean
+  spot: number | null
+  atm_vol: number | null
+  expiries: number | null
 }
 export type DeskExpiry = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; strikes: number[] }
 export type BoardCell = {
@@ -37,8 +49,13 @@ export type BoardCell = {
 }
 export type BoardRow = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; quotes: BoardCell[] }
 export type Board = {
+  asset: string
+  underlying: string
+  venue: string
+  tradable: boolean
   product: Product
-  token: 'sol' | 'usdc'
+  /** Collateral: 'sol' for SOL calls, the asset symbol for quote-only calls, 'usdc' for puts. */
+  token: string
   amount: string
   index_price: number
   fee_pct: number
@@ -122,9 +139,14 @@ export class DeskClient {
   }
 
   health(timeoutMs?: number) { return this.get<DeskHealth>('/health', timeoutMs) }
-  expiries() { return this.get<{ expiries: DeskExpiry[] }>('/expiries').then((r) => r.expiries) }
-  board(opts: { product: Product; amount?: number; maxDays?: number; moneyness?: number[] }) {
+  /** Omitting `asset` means SOL, the one tradable asset. */
+  expiries(asset?: string) {
+    const q = asset ? `?asset=${encodeURIComponent(asset)}` : ''
+    return this.get<{ expiries: DeskExpiry[] }>(`/expiries${q}`).then((r) => r.expiries)
+  }
+  board(opts: { asset?: string; product: Product; amount?: number; maxDays?: number; moneyness?: number[] }) {
     const p = new URLSearchParams({ product: opts.product })
+    if (opts.asset) p.set('asset', opts.asset)
     if (opts.amount !== undefined) p.set('amount', String(opts.amount))
     if (opts.maxDays !== undefined) p.set('max_days', String(opts.maxDays))
     if (opts.moneyness?.length) p.set('moneyness', opts.moneyness.join(','))

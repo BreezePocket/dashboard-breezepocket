@@ -1123,7 +1123,7 @@ body[data-theme="dark"] .wallet-adapter-modal-button-close svg { fill: #dadada !
 .desk-offline .net-dot { background: var(--red); }
 .desk-connecting .net-dot { background: #d4a72c; animation: blink 1s steps(1) infinite; }
 
-.tag-live, .tag-soon {
+.tag-live, .tag-soon, .tag-quote {
   padding: 1px 6px;
   border-radius: 999px;
   font-family: var(--mono);
@@ -1134,6 +1134,8 @@ body[data-theme="dark"] .wallet-adapter-modal-button-close svg { fill: #dadada !
 }
 .tag-live { border-color: var(--green); background: var(--green); color: #fff; }
 .tag-soon { border-color: rgba(0, 0, 0, 0.3); background: transparent; color: rgba(0, 0, 0, 0.5); }
+/* A live price the desk streams but cannot trade: outlined, so it never reads as LIVE. */
+.tag-quote { border-color: var(--green); background: transparent; color: var(--green); }
 .apr-soon { color: rgba(0, 0, 0, 0.35); font-weight: 400; }
 .tbl-row.is-soon .tbl-c { color: rgba(0, 0, 0, 0.55); }
 .tbl-row.is-soon .asset img, .tbl-row.is-soon .btn-earn img { filter: grayscale(0.6); opacity: 0.8; }

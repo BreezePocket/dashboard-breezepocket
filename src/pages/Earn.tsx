@@ -11,7 +11,10 @@ import type { Board, Product } from '../lib/mm'
 type Tab = 'call' | 'put'
 type SortKey = 'asset' | 'chain' | 'maxApr' | 'minApr'
 type AssetClass = 'all' | 'rwa' | 'crypto'
-type Row = Market & { live: boolean }
+/** live: tradable on chain · quote: the desk streams a live price but cannot trade it · soon: neither. */
+type State = 'live' | 'quote' | 'soon'
+type Row = Market & { state: State; underlying: string | null; priced: boolean }
+const STATE_ORDER: Record<State, number> = { live: 0, quote: 1, soon: 2 }
 
 const TABS = [
   { id: 'call' as Tab, label: 'covered calls' },
@@ -37,7 +40,11 @@ export default function Earn() {
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { client, health, status } = useDesk()
-  const [boards, setBoards] = useState<Partial<Record<Product, Board>>>({})
+  // Boards keyed `${asset}:${product}`, for every asset the desk prices.
+  const [boards, setBoards] = useState<Record<string, Board>>({})
+  const quoted = useMemo(() => new Map((health?.assets ?? []).map((a) => [a.asset, a])), [health])
+  // A stable key so the board fetch reruns when the desk's asset list changes, not on every /health poll.
+  const quotedKey = [...quoted.keys()].join(',')
 
   useEffect(() => {
     if (!menu) return
@@ -46,35 +53,50 @@ export default function Earn() {
     return () => document.removeEventListener('mousedown', close)
   }, [menu])
 
-  // Live yields for the SOL markets, refreshed every 60s.
+  // Live yields for every asset the desk prices, both products, refreshed every 60s.
+  // The desk serves these from cached surfaces, so the fan-out costs it no upstream calls.
   useEffect(() => {
-    if (!client) return
+    if (!client || !quotedKey) return
     let cancelled = false
+    const pairs = quotedKey.split(',').flatMap((a) => (['sell_sol', 'buy_sol'] as Product[]).map((p) => [a, p] as const))
     const load = async () => {
-      const [sell, buy] = await Promise.all([client.board({ product: 'sell_sol', maxDays: 90 }).catch(() => null), client.board({ product: 'buy_sol', maxDays: 90 }).catch(() => null)])
-      if (!cancelled) setBoards({ sell_sol: sell ?? undefined, buy_sol: buy ?? undefined })
+      const got = await Promise.all(
+        pairs.map(([asset, product]) =>
+          client.board({ asset, product, maxDays: 90 }).then((b): [string, Board] => [`${asset}:${product}`, b]).catch(() => null),
+        ),
+      )
+      if (!cancelled) setBoards(Object.fromEntries(got.filter((g): g is [string, Board] => g !== null)))
     }
     load()
     const id = setInterval(load, 60_000)
     return () => { cancelled = true; clearInterval(id) }
-  }, [client])
+  }, [client, quotedKey])
 
   const rows = useMemo<Row[]>(() => {
-    const range = aprRange(boards[PRODUCT[tab]] ?? null)
-    let src: Row[] = (tab === 'call' ? CALLS : PUTS).map((m) =>
-      m.asset === 'SOL' ? { ...m, live: true, maxApr: range?.max ?? m.maxApr, minApr: range?.min ?? m.minApr } : { ...m, live: false },
-    )
+    let src: Row[] = (tab === 'call' ? CALLS : PUTS).map((m) => {
+      const desk = quoted.get(m.asset)
+      if (!desk) return { ...m, state: 'soon', underlying: null, priced: false }
+      const range = aprRange(boards[`${m.asset}:${PRODUCT[tab]}`] ?? null)
+      return {
+        ...m,
+        state: desk.tradable ? 'live' : 'quote',
+        underlying: desk.underlying,
+        priced: range !== null,
+        maxApr: range?.max ?? 0,
+        minApr: range?.min ?? 0,
+      }
+    })
     if (cls !== 'all') src = src.filter((m) => isRwa(m.asset) === (cls === 'rwa'))
-    if (!sort) return src
+    // Unsorted, markets with a live price come first; Array.sort is stable, so each group keeps its order.
+    if (!sort) return [...src].sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state])
     const val = (m: Row) => (sort.key === 'asset' ? m.asset.toLowerCase() : sort.key === 'chain' ? CHAINS[m.chainId].name : m[sort.key])
     return [...src].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir)
-  }, [tab, sort, cls, boards])
+  }, [tab, sort, cls, boards, quoted])
 
   const toggleSort = (key: SortKey) => setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
 
   // The cap bar is the desk's real aggregate exposure against its hard notional cap.
   const cap = health ? Math.min(100, (health.exposure.totalUsd / health.exposure.capTotalUsd) * 100) : 0
-  const liveRange = aprRange(boards[PRODUCT[tab]] ?? null)
 
   return (
     <section className="page">
@@ -120,16 +142,22 @@ export default function Earn() {
               const chain = CHAINS[m.chainId]
               const label = tab === 'call' ? `Earn on ${m.asset}` : `Earn on ${m.collateral}`
               const btnIcon = tab === 'call' ? iconFor(m.asset) : iconFor(m.collateral)
-              const showApr = !m.live || liveRange !== null
+              const soon = m.state === 'soon'
+              // SOON rows keep their greyed placeholder APRs; priced rows show the desk's number or a dash until it lands.
+              const apr = (v: number) => (soon || m.priced ? `${v.toFixed(2)}%` : '—')
               return (
-                <ul className={`tbl-row ${m.live ? 'is-live' : 'is-soon'}`} key={`${m.asset}-${m.collateral}-${m.type}`}>
+                <ul className={`tbl-row ${soon ? 'is-soon' : 'is-live'}`} key={`${m.asset}-${m.collateral}-${m.type}`}>
                   <li className="tbl-c sticky">
                     <div className="asset">
                       <img src={iconFor(m.asset)} alt={`The icon for ${m.asset}`} />
                       <div className="asset-id">
                         <span className="asset-tick">
                           <b>{m.asset}</b>
-                          {m.live ? <span className="tag-live" title="Quoted live by the market maker on Solana devnet">LIVE</span> : <span className="tag-soon">SOON</span>}
+                          {m.state === 'live' && <span className="tag-live" title="Quoted live by the market maker and tradable on Solana devnet">LIVE</span>}
+                          {m.state === 'quote' && (
+                            <span className="tag-quote" title={`Live indicative quote from ${m.underlying} listed options via Alpaca. Quote only: the devnet program settles SOL alone.`}>QUOTE</span>
+                          )}
+                          {soon && <span className="tag-soon">SOON</span>}
                           {isRwa(m.asset) && <span className="tag-rwa">RWA</span>}
                         </span>
                         <small>{assetName(m.asset)}</small>
@@ -138,11 +166,13 @@ export default function Earn() {
                   </li>
                   <li className="tbl-c"><div className="chain"><img src={chain.icon} alt={`The icon for ${chain.name}`} /><span>{chain.name}</span></div></li>
                   <li className="tbl-c end">{tab === 'call' ? 'Covered call' : 'Cash secured put'}</li>
-                  <li className="tbl-c end"><span className={`apr ${m.live ? '' : 'apr-soon'}`}>{showApr ? `${m.maxApr.toFixed(2)}%` : '—'}</span></li>
-                  <li className="tbl-c end"><span className={`apr ${m.live ? '' : 'apr-soon'}`}>{showApr ? `${m.minApr.toFixed(2)}%` : '—'}</span></li>
+                  <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.maxApr)}</span></li>
+                  <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.minApr)}</span></li>
                   <li className="tbl-c end">
-                    {m.live ? (
+                    {m.state === 'live' ? (
                       <Link className="btn-earn" to={marketHref(m)}><span className="ic"><img src={btnIcon} alt="" /></span>{label}</Link>
+                    ) : m.state === 'quote' ? (
+                      <Link className="btn-earn" to={marketHref(m)}><span className="ic"><img src={btnIcon} alt="" /></span>View live quotes</Link>
                     ) : (
                       <span className="btn-earn is-soon" title="Not yet listed on the devnet program"><span className="ic"><img src={btnIcon} alt="" /></span>Coming soon</span>
                     )}

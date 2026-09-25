@@ -20,7 +20,9 @@ import { explorerAddr, explorerTx } from '../lib/config'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const ordinal = (n: number) => n + (['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th')
 const expiryShort = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]}_${d.getUTCDate()}` }
-const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()} 08:00 UTC` }
+const pad2 = (n: number) => String(n).padStart(2, '0')
+// The hour comes from the expiry itself: Deribit (SOL) settles at 08:00 UTC, US listed options at the 20:00 UTC close.
+const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC` }
 const tone = (apr: number) => (apr > 33 ? 'red' : apr > 20 ? 'amber' : 'green')
 const TYPES: { id: OptionType; label: string }[] = [
   { id: 'call', label: 'Covered call' },
@@ -50,8 +52,10 @@ export default function EarnDetail() {
   const [params] = useSearchParams()
   const asset = params.get('asset') || 'SOL'
   const type = (params.get('type') === 'put' ? 'put' : 'call') as OptionType
-  if (asset !== 'SOL') return <ComingSoon asset={asset} type={type} />
-  return <LiveSolMarket type={type} expiryParam={Number(params.get('expiry')) || null} />
+  const expiryParam = Number(params.get('expiry')) || null
+  if (asset === 'SOL') return <LiveSolMarket type={type} expiryParam={expiryParam} />
+  // Anything else is live only if the desk prices it; QuoteOnlyMarket falls back to ComingSoon when it does not.
+  return <QuoteOnlyMarket asset={asset} type={type} expiryParam={expiryParam} />
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -410,6 +414,177 @@ function LiveSolMarket({ type, expiryParam }: { type: OptionType; expiryParam: n
                   : 'Earn upfront premium now'}
               </button>
             )}
+          </div>
+        </div>
+      </Terminal>
+    </section>
+  )
+}
+
+/* ---------------------------------------------------------------------------------------- */
+
+/**
+ * A market the desk prices but the program cannot settle (the tokenized equities, priced from
+ * US listed options via Alpaca). Same strike ladder and payoff preview as SOL, but read-only:
+ * there is no RFQ and no transaction, because the desk declines to trade anything but SOL.
+ */
+function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: OptionType; expiryParam: number | null }) {
+  const navigate = useNavigate()
+  const product = productForType(type)
+  const { client, health, status } = useDesk()
+  const desk = health?.assets?.find((a) => a.asset === asset) ?? null
+  const quoted = desk !== null
+
+  const [expiries, setExpiries] = useState<DeskExpiry[]>([])
+  const [board, setBoard] = useState<Board | null>(null)
+  const [loadErr, setLoadErr] = useState<string | null>(null)
+  const [strike, setStrike] = useState<number | null>(null)
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    if (!client || !quoted) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const [ex, bd] = await Promise.all([client.expiries(asset), client.board({ asset, product, maxDays: 90 })])
+        if (cancelled) return
+        setExpiries(ex)
+        setBoard(bd)
+        setLoadErr(null)
+      } catch (e) {
+        if (!cancelled) setLoadErr(e instanceof Error ? e.message : String(e))
+      }
+    }
+    load()
+    const id = setInterval(load, 30_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [client, quoted, asset, product])
+
+  const expiryTs = expiryParam && expiries.some((e) => e.expiry_ts === expiryParam) ? expiryParam : expiries[0]?.expiry_ts ?? null
+  useEffect(() => { setStrike(null) }, [product, expiryTs, asset])
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const cells: BoardCell[] = useMemo(() => {
+    const row = board?.expiries.find((r) => r.expiry_ts === expiryTs)
+    return row ? [...row.quotes].sort((a, b) => b.apr_pct - a.apr_pct) : []
+  }, [board, expiryTs])
+
+  // Once the desk has answered, an asset it does not price is simply not live yet.
+  if (status !== 'connecting' && !quoted) return <ComingSoon asset={asset} type={type} />
+
+  const cell = cells.find((c) => c.fixed_price === strike) ?? null
+  const under = desk?.underlying ?? asset
+  const spot = desk?.spot ?? board?.index_price ?? null
+  const collateral = type === 'call' ? asset : 'USDC'
+  // The board prices a fixed size: 1 unit of the asset (9 decimals) for calls, 100 USDC for puts.
+  const size = board ? (product === 'sell_sol' ? Number(board.amount) / 1e9 : Number(board.amount) / 1e6) : product === 'sell_sol' ? 1 : 100
+  const premium = cell ? (product === 'sell_sol' ? Number(cell.yield_amount) / 1e9 : Number(cell.yield_amount) / 1e6) : null
+  const premiumUsd = premium !== null ? (product === 'sell_sol' && spot ? premium * spot : premium) : null
+  const label = expiryTs ? expiryShort(expiryTs) : '…'
+
+  return (
+    <section className="page">
+      <PageTitle>Earn yield upfront</PageTitle>
+      <Terminal title={`~/earn/${asset}/${collateral}/${label}`}>
+        <div className="ed-head">
+          <HeaderChips
+            asset={asset}
+            type={type}
+            extra={
+              <Dropdown
+                label="Expiry"
+                value={expiryTs ? String(expiryTs) : ''}
+                options={expiries.map((e) => ({ id: String(e.expiry_ts), label: `${expiryShort(e.expiry_ts)} · ${Math.round(e.days)}d` }))}
+                onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
+              />
+            }
+          />
+          <div className="ed-head-group">
+            <span className="tag-quote" title="Live indicative quote; not tradable on devnet">QUOTE</span>
+            <span className="ed-price" title={`${under} spot, from Alpaca`}>{spot ? fmtPrice(spot) : '—'}</span>
+          </div>
+        </div>
+
+        <div className="ed-body">
+          {status === 'offline' && <div className="notice warn">Market-maker desk unreachable, so there are no live quotes right now.</div>}
+          {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
+          <div className="notice">
+            <b>Quote only.</b> Live indicative prices from {under} listed options via Alpaca
+            {desk?.atm_vol ? `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%` : ''}. The devnet program settles SOL alone, so a {asset} position
+            cannot be opened yet.
+          </div>
+
+          <div className="ed-prompt">
+            <span>
+              Prices at which you could {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
+              {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
+            </span>
+          </div>
+
+          <ul className="strikes">
+            {cells.map((c) => (
+              <li key={c.fixed_price} className={`strike ${strike === c.fixed_price ? 'is-selected' : ''}`} data-tone={tone(c.apr_pct)}>
+                <small className="strike-tag"><span>APR</span><span>{c.apr_pct.toFixed(2)}%</span></small>
+                <button type="button" className="strike-btn" onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? c.price_source}>
+                  <strong>{fmtPrice(c.fixed_price)}</strong>
+                </button>
+              </li>
+            ))}
+            {!cells.length && status !== 'offline' && <li className="strikes-empty">Loading live strikes from the desk…</li>}
+          </ul>
+
+          <div className="payoff">
+            <div className="payoff-bar"><span>Now</span></div>
+            <div className="payoff-now">
+              <div className="payoff-apr">
+                <span><span className="big">{cell ? `${cell.apr_pct.toFixed(2)}%` : '--'}</span> APR</span>
+                <span>
+                  {premium !== null
+                    ? `${fmtNum(premium, product === 'sell_sol' ? 6 : 2)} ${collateral} upfront on ${fmtNum(size, 0)} ${collateral}` +
+                      (product === 'sell_sol' && premiumUsd !== null ? ` (≈ ${fmtPrice(premiumUsd)})` : '') + ' · indicative'
+                    : 'Select a price to see the premium'}
+                </span>
+                {cell && <small className="quote-meta">{cell.instrument ?? cell.price_source} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · desk fee ${board.fee_pct}%` : ''}</small>}
+              </div>
+              <ul className="payoff-legend" aria-hidden="true">
+                {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}
+              </ul>
+            </div>
+            <div className="payoff-bar"><span>On {label}</span></div>
+            <div className="payoff-out">
+              {product === 'sell_sol' ? (
+                <>
+                  <div>
+                    <small>If {under} <b>BELOW</b> {strike ? fmtPrice(strike) : '--'}</small>
+                    <strong><img src={iconFor(asset)} alt="" />Get {fmtNum(size, 0)} {asset} back</strong>
+                  </div>
+                  <div>
+                    <small>If {under} <b>ABOVE</b> {strike ? fmtPrice(strike) : '--'}</small>
+                    <strong><img src={iconFor('USDC')} alt="" />Receive {strike ? fmtNum(size * strike) : '--'} USDC</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <small>If {under} <b>ABOVE</b> {strike ? fmtPrice(strike) : '--'}</small>
+                    <strong><img src={iconFor('USDC')} alt="" />Get {fmtNum(size)} USDC back</strong>
+                  </div>
+                  <div>
+                    <small>If {under} <b>BELOW</b> {strike ? fmtPrice(strike) : '--'}</small>
+                    <strong><img src={iconFor(asset)} alt="" />Receive {strike ? fmtNum(size / strike, 4) : '--'} {asset}</strong>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="ed-cta">
+            <button type="button" className="btn btn-primary" disabled title="The devnet program settles SOL only">
+              Quote only · not tradable on devnet
+            </button>
           </div>
         </div>
       </Terminal>
