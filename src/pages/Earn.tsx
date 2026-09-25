@@ -13,7 +13,8 @@ type SortKey = 'asset' | 'chain' | 'maxApr' | 'minApr'
 type AssetClass = 'all' | 'rwa' | 'crypto'
 /** live: tradable on chain · quote: the desk streams a live price but cannot trade it · soon: neither. */
 type State = 'live' | 'quote' | 'soon'
-type Row = Market & { state: State; underlying: string | null; venue: string | null; priced: boolean }
+/** maxApr/minApr are the desk's live range, null when it is not quoting this market. */
+type Row = Market & { state: State; underlying: string | null; venue: string | null; maxApr: number | null; minApr: number | null }
 const STATE_ORDER: Record<State, number> = { live: 0, quote: 1, soon: 2 }
 
 const TABS = [
@@ -76,23 +77,27 @@ export default function Earn() {
   const rows = useMemo<Row[]>(() => {
     let src: Row[] = (tab === 'call' ? CALLS : PUTS).map((m) => {
       const desk = quoted.get(m.asset)
-      if (!desk) return { ...m, state: 'soon', underlying: null, venue: null, priced: false }
+      if (!desk) return { ...m, state: 'soon', underlying: null, venue: null, maxApr: null, minApr: null }
       const range = aprRange(boards[`${m.asset}:${PRODUCT[tab]}`] ?? null)
       return {
         ...m,
         state: desk.tradable ? 'live' : 'quote',
         underlying: desk.underlying,
         venue: desk.venue,
-        priced: range !== null,
-        maxApr: range?.max ?? 0,
-        minApr: range?.min ?? 0,
+        maxApr: range?.max ?? null,
+        minApr: range?.min ?? null,
       }
     })
     if (cls !== 'all') src = src.filter((m) => isRwa(m.asset) === (cls === 'rwa'))
     if (onlyPre) src = src.filter((m) => isPreStocks(m.asset))
     // Unsorted, markets with a live price come first; Array.sort is stable, so each group keeps its order.
     if (!sort) return [...src].sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state])
-    const val = (m: Row) => (sort.key === 'asset' ? m.asset.toLowerCase() : sort.key === 'chain' ? CHAINS[m.chainId].name : m[sort.key])
+    if (sort.key === 'maxApr' || sort.key === 'minApr') {
+      // Unquoted markets have no APR, so they stay at the bottom in either direction.
+      const k = sort.key
+      return [...src].sort((a, b) => (a[k] === null ? (b[k] === null ? 0 : 1) : b[k] === null ? -1 : (a[k] - b[k]) * sort.dir))
+    }
+    const val = (m: Row) => (sort.key === 'asset' ? m.asset.toLowerCase() : CHAINS[m.chainId].name)
     return [...src].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir)
   }, [tab, sort, cls, onlyPre, boards, quoted])
 
@@ -151,8 +156,8 @@ export default function Earn() {
               const label = tab === 'call' ? `Sell High Your ${m.asset} Asset` : `Buy Low with ${m.collateral}`
               const btnIcon = tab === 'call' ? iconFor(m.asset) : iconFor(m.collateral)
               const soon = m.state === 'soon'
-              // SOON rows keep their greyed placeholder APRs; priced rows show the desk's number or a dash until it lands.
-              const apr = (v: number) => ((soon || m.priced) && Number.isFinite(v) ? `${v.toFixed(2)}%` : '—')
+              // Only the desk's live quotes: a dash while it is not quoting this market.
+              const apr = (v: number | null) => (v !== null && Number.isFinite(v) ? `${v.toFixed(2)}%` : '—')
               return (
                 <ul className={`tbl-row ${soon ? 'is-soon' : 'is-live'}`} key={`${m.asset}-${m.collateral}-${m.type}`}>
                   <li className="tbl-c sticky">
@@ -163,7 +168,7 @@ export default function Earn() {
                           <b>{m.asset}</b>
                           {m.state === 'live' && <span className="tag-live" title="Quoted live by the market maker and tradable on Solana devnet">LIVE</span>}
                           {m.state === 'quote' && (
-                            <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: the devnet program settles SOL alone.`}>QUOTE</span>
+                            <span className="tag-quote" title={`Live quote from ${priceSource(m.venue ?? '', m.underlying ?? m.asset)}. Quote only: not listed on the devnet program yet.`}>QUOTE</span>
                           )}
                           {soon && <span className="tag-soon">SOON</span>}
                           {isPreStocks(m.asset) ? (
