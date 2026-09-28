@@ -23,7 +23,7 @@ const onlineTitle = (health: DeskHealth | null) => {
 
 export default function Nav() {
   const { status, health } = useDesk()
-  const deskTitle = status === 'online' ? onlineTitle(health) : status === 'offline' ? 'Market-maker desk unreachable' : 'Connecting to desk…'
+  const deskTitle = status === 'online' ? onlineTitle(health) : status === 'offline' ? 'Market makers unreachable' : 'Connecting to market makers…'
   // A reachable backend with no market maker online cannot quote, so the dot says so too.
   const dot = status === 'online' && isBackend(health) && !health?.mm_count ? 'offline' : status
   return (

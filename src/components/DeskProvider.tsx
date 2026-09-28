@@ -9,7 +9,7 @@ const DeskContext = createContext<Ctx>({ client: null, health: null, status: 'co
 const HEALTH_POLL_MS = 10_000
 const RETRY_MS = 15_000
 
-/** Finds the market-maker desk and keeps its /health fresh for the whole app. */
+/** Finds the PAYtience backend (or a single market maker) and keeps its /health fresh for the whole app. */
 export function DeskProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<DeskClient | null>(null)
   const [health, setHealth] = useState<DeskHealth | null>(null)

@@ -171,7 +171,7 @@ cd ../MM-system-breezepocket
 AGGREGATOR_URL=ws://127.0.0.1:8080 npm start     # desk dials the backend; its own REST stays on :8787
 ```
 
-The app finds its API in this order: `?mm=<url>` (remembered in localStorage, and forgotten once another candidate answers instead), then `VITE_API_URL` from the build (`VITE_MM_URL` is the legacy name), then a local backend on `http://localhost:8080`, then a local desk on `http://localhost:8787`. The backend's REST API is a superset of a desk's, so `?mm=` can still point at a single desk.
+The app finds its API in this order: `?mm=<url>` (remembered in localStorage, and forgotten once it has failed connects spread over at least two minutes, three strikes at most one a minute, and another candidate answers instead), then `VITE_API_URL` from the build (`VITE_MM_URL` is the legacy name), then a local backend on `http://localhost:8080`, then a local desk on `http://localhost:8787`. The backend's REST API is a superset of a desk's, so `?mm=` can still point at a single desk.
 
 Endpoints the app uses: `GET /health`, `GET /expiries`, `GET /board`, `POST /rfq`, `POST /sign`, `GET`/`POST /faucet`.
 

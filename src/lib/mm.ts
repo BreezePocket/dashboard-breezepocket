@@ -126,6 +126,17 @@ export type RfqRequest = {
 }
 
 const LS_KEY = 'paytience.mmUrl'
+/** How many strikes in a row the saved override has collected. */
+const LS_FAILS = 'paytience.mmUrlFails'
+/** When the last strike was counted (ms). */
+const LS_FAIL_AT = 'paytience.mmUrlFailAt'
+/** The override is forgotten only after this many strikes in a row, so one restart or slow tunnel does not drop it. */
+const MAX_OVERRIDE_FAILS = 3
+/**
+ * Failed connects closer together than this count as one strike, so a single outage seen
+ * by a StrictMode double mount, several tabs or a quick reload cannot use up every strike.
+ */
+const STRIKE_SPACING_MS = 60_000
 /** A backend, then a desk, running next to the browser. */
 const LOCAL = ['http://localhost:8080', 'http://localhost:8787']
 
@@ -138,12 +149,46 @@ function savedOverride(): string | null {
   }
 }
 
+function overrideFails(): number {
+  try {
+    return Number(localStorage.getItem(LS_FAILS)) || 0
+  } catch {
+    return 0 /* storage unavailable */
+  }
+}
+
+function setOverrideFails(n: number) {
+  try {
+    localStorage.setItem(LS_FAILS, String(n))
+    if (n === 0) localStorage.removeItem(LS_FAIL_AT)
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Counts a failed connect of the override as a strike, at most one per STRIKE_SPACING_MS. */
+function strikeOverride() {
+  try {
+    const now = Date.now()
+    const last = Number(localStorage.getItem(LS_FAIL_AT)) || 0
+    if (now - last < STRIKE_SPACING_MS) return
+    localStorage.setItem(LS_FAIL_AT, String(now))
+    localStorage.setItem(LS_FAILS, String(overrideFails() + 1))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /** The saved override always comes first, so resolveDesk can tell when it failed. */
 export function mmUrlCandidates(): string[] {
   const out: string[] = []
   try {
     const q = new URLSearchParams(window.location.search).get('mm')
-    if (q) localStorage.setItem(LS_KEY, q.replace(/\/+$/, ''))
+    if (q) {
+      localStorage.setItem(LS_KEY, q.replace(/\/+$/, ''))
+      localStorage.setItem(LS_FAILS, '0') // a freshly given override starts with no strikes
+      localStorage.removeItem(LS_FAIL_AT)
+    }
   } catch {
     /* storage unavailable */
   }
@@ -228,28 +273,39 @@ export class DeskClient {
 /** True when `health` came from the PAYtience backend rather than a single desk. */
 export const isBackend = (health: DeskHealth | null | undefined) => health?.service === 'paytience-backend'
 
-/** Try each candidate URL until a backend or a desk answers /health. */
+/**
+ * Try each candidate URL until a backend or a desk answers /health. The saved override is
+ * tried first; a connect it fails (an error, a timeout or a non-desk body) is a strike (at
+ * most one per STRIKE_SPACING_MS), and it is forgotten once it has MAX_OVERRIDE_FAILS in a
+ * row and another candidate answers.
+ */
 export async function resolveDesk(): Promise<{ client: DeskClient; health: DeskHealth } | null> {
   const candidates = mmUrlCandidates()
   const saved = savedOverride()
   for (const url of candidates) {
     const client = new DeskClient(url)
+    let health: DeskHealth | null = null
     try {
-      const health = await client.health(3500)
-      if (health && (isBackend(health) || typeof health.mm_pubkey === 'string')) {
-        // The saved override is tried first, so anything else answering means it is stale.
-        if (saved && url !== saved) {
-          try {
-            localStorage.removeItem(LS_KEY)
-          } catch {
-            /* storage unavailable */
-          }
-        }
-        return { client, health }
-      }
+      const h = await client.health(3500)
+      if (h && (isBackend(h) || typeof h.mm_pubkey === 'string')) health = h
     } catch {
       /* try the next one */
     }
+    if (url === saved) {
+      if (health) setOverrideFails(0)
+      else strikeOverride()
+    }
+    if (!health) continue
+    if (saved && url !== saved && overrideFails() >= MAX_OVERRIDE_FAILS) {
+      try {
+        localStorage.removeItem(LS_KEY)
+        localStorage.removeItem(LS_FAILS)
+        localStorage.removeItem(LS_FAIL_AT)
+      } catch {
+        /* storage unavailable */
+      }
+    }
+    return { client, health }
   }
   return null
 }

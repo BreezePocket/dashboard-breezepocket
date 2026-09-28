@@ -337,10 +337,10 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
         <div className="ed-body">
           {status === 'offline' && (
             <div className="notice warn">
-              Market-maker desk unreachable. Try again in a moment, or point this page at a desk with <code>?mm=https://…</code>.
+              Market makers unreachable. Try again in a moment, or point this page at another server with <code>?mm=https://…</code>.
             </div>
           )}
-          {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
+          {loadErr && status === 'online' && <div className="notice warn">Market maker error: {loadErr}</div>}
 
           <div className="ed-prompt">
             <span>
@@ -358,7 +358,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 </button>
               </li>
             ))}
-            {!cells.length && status === 'online' && <li className="strikes-empty">Loading live strikes from the desk…</li>}
+            {!cells.length && status === 'online' && <li className="strikes-empty">Loading live strikes…</li>}
           </ul>
 
           <div className="amount">
@@ -459,14 +459,14 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 disabled={busy || status !== 'online' || strike === null || qty <= 0 || (connected && (flow.step !== 'quoted' || insufficient))}
                 onClick={submit}
               >
-                {status !== 'online' ? 'Desk offline'
+                {status !== 'online' ? 'Market makers offline'
                   : strike === null ? 'Select price'
                   : !connected ? 'Connect wallet to continue'
                   : insufficient ? 'Insufficient balance'
                   : flow.step === 'quoting' ? 'Getting quote…'
                   : flow.step === 'declined' ? 'Quote declined'
                   : flow.step === 'signing' ? 'Sign in your wallet…'
-                  : flow.step === 'cosigning' ? 'Desk co-signing…'
+                  : flow.step === 'cosigning' ? 'Market maker co-signing…'
                   : flow.step === 'broadcasting' ? 'Broadcasting…'
                   : flow.step === 'confirming' ? 'Confirming on devnet…'
                   : 'Earn upfront premium now'}
@@ -571,8 +571,8 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
         </div>
 
         <div className="ed-body">
-          {status === 'offline' && <div className="notice warn">Market-maker desk unreachable, so there are no live quotes right now.</div>}
-          {loadErr && status === 'online' && <div className="notice warn">Desk error: {loadErr}</div>}
+          {status === 'offline' && <div className="notice warn">Market makers unreachable, so there are no live quotes right now.</div>}
+          {loadErr && status === 'online' && <div className="notice warn">Market maker error: {loadErr}</div>}
           <div className="notice">
             <b>Quote only.</b> Live prices from {source}
             {desk?.atm_vol ? (desk.venue === 'prestocks' ? `, flat synthetic vol ${(desk.atm_vol * 100).toFixed(0)}%` : `, ~30-day implied vol ${(desk.atm_vol * 100).toFixed(1)}%`) : ''}. {asset} is not listed on the devnet program yet, so a position
@@ -595,7 +595,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                 </button>
               </li>
             ))}
-            {!cells.length && status !== 'offline' && <li className="strikes-empty">Loading live strikes from the desk…</li>}
+            {!cells.length && status !== 'offline' && <li className="strikes-empty">Loading live strikes…</li>}
           </ul>
 
           <div className="payoff">
@@ -654,7 +654,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
 }
 
 function FlowStatus({ flow, onReset }: { flow: Flow; onReset: () => void }) {
-  if (flow.step === 'declined') return <div className="notice warn">Desk declined this quote: {flow.reason}</div>
+  if (flow.step === 'declined') return <div className="notice warn">No quote: {flow.reason}</div>
   if (flow.step === 'error') return <div className="notice warn">{flow.message} <button type="button" className="link-btn" onClick={onReset}>Try again</button></div>
   if (flow.step === 'confirming') return <div className="notice">Waiting for devnet confirmation · <a href={explorerTx(flow.signature)} target="_blank" rel="noopener noreferrer">view transaction</a></div>
   if (flow.step === 'done') {
