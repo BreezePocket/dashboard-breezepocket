@@ -8,6 +8,7 @@ import PageTitle from '../components/PageTitle'
 import Terminal from '../components/Terminal'
 import Dropdown from '../components/Dropdown'
 import { useDesk } from '../components/DeskProvider'
+import { shortAddr } from '../components/WalletButton'
 import { useBalances } from '../hooks/useBalances'
 import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
 import {
@@ -247,7 +248,8 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   const balance = product === 'sell_sol' ? (isSol ? balances.sol : balances.asset) : balances.usdc
   const insufficient = connected && balance !== null && qty > balance
   const capUsed = health && expiryTs ? (health.exposure.perExpiry[String(expiryTs)]?.onChainUsd ?? 0) + (health.exposure.perExpiry[String(expiryTs)]?.reservedUsd ?? 0) : 0
-  const capPct = health ? Math.min(100, (capUsed / health.exposure.capPerExpiryUsd) * 100) : 0
+  // The backend reports a zero cap when no market maker is online.
+  const capPct = health && health.exposure.capPerExpiryUsd > 0 ? Math.min(100, (capUsed / health.exposure.capPerExpiryUsd) * 100) : 0
 
   const submit = async () => {
     if (!connected || !publicKey) { setVisible(true); return }
@@ -266,7 +268,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
       const userSigned = Buffer.from(signed.serialize({ requireAllSignatures: false, verifySignatures: false })).toString('base64')
       setFlow({ step: 'cosigning' })
       const res = await client.sign(userSigned)
-      if (res.type === 'sign_rejection') throw new Error(`Desk declined to co-sign: ${res.reason}`)
+      if (res.type === 'sign_rejection') throw new Error(`Market maker declined to co-sign: ${res.reason}`)
       const full = Transaction.from(Buffer.from(res.tx_base64, 'base64'))
       let signature = res.signature
       if (!signature) {
@@ -325,7 +327,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
           />
           <div className="ed-head-group">
             <span className="ed-price" title={source}>{spot ? fmtPrice(spot) : '—'}</span>
-            <div className="gauge" title={health ? `${capUsed.toFixed(0)} of ${health.exposure.capPerExpiryUsd} USD desk capacity used for this expiry` : 'Desk capacity'}>
+            <div className="gauge" title={health ? `${capUsed.toFixed(0)} of ${health.exposure.capPerExpiryUsd} USD market-maker capacity used for this expiry` : 'Market-maker capacity'}>
               <div className="gauge-arc" style={{ ['--deg' as string]: `${(capPct / 100) * 180}deg` }} />
               <small>{capPct.toFixed(0)}% of cap</small>
             </div>
@@ -407,7 +409,9 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 </span>
                 {quote && (
                   <small className="quote-meta">
-                    Binding quote · {quote.instrument ?? sourceLabel(quote.price_source)} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
+                    Binding quote · quoted by {quote.mm_name || shortAddr(quote.mm_pubkey)}
+                    {(quote.quotes_received ?? 0) > 1 && ` · best of ${quote.quotes_received} quotes`}
+                    {' '}· {quote.instrument ?? sourceLabel(quote.price_source)} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
                   </small>
                 )}
               </div>
@@ -604,7 +608,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                     ? `${fmtNum(premium)} USDC upfront on ${fmtNum(size, 0)} ${collateral} · indicative`
                     : 'Select a price to see the premium'}
                 </span>
-                {cell && <small className="quote-meta">{cell.instrument ?? sourceLabel(cell.price_source)} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${board.fee_pct}%` : ''}</small>}
+                {cell && <small className="quote-meta">{cell.instrument ?? sourceLabel(cell.price_source)} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${cell.fee_pct ?? board.fee_pct}%` : ''}</small>}
               </div>
               <ul className="payoff-legend" aria-hidden="true">
                 {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}

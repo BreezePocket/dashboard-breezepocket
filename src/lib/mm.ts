@@ -1,21 +1,32 @@
 /**
- * Client for the PAYtience market-maker desk (REST API from the MM-system-breezepocket repo).
+ * Client for the PAYtience backend (backend-paytience), which aggregates quotes from every
+ * connected market maker: it auctions each RFQ, merges their boards and routes co-signing
+ * to the winner. Its REST API is a superset of a single desk's (MM-system-breezepocket),
+ * so a raw desk still works.
  *
- * The desk URL is resolved at runtime, in order: a `?mm=` query override (persisted),
- * the build-time VITE_MM_URL, then http://localhost:8787 for a desk running next to
- * the browser. The first candidate whose /health answers wins.
+ * The URL is resolved at runtime, in order: a `?mm=` query override (persisted), the
+ * build-time VITE_API_URL (legacy VITE_MM_URL), then http://localhost:8080 for a backend
+ * and http://localhost:8787 for a desk running next to the browser. The first candidate
+ * whose /health answers wins.
  */
-import { MM_URL_DEFAULT } from './config'
+import { API_URL_DEFAULT } from './config'
 
 export type Product = 'sell_sol' | 'buy_sol'
 
 export type DeskHealth = {
   ok: boolean
+  /** Backend only: 'paytience-backend', its version, how many market makers are online, and its counters. */
+  service?: string
+  version?: string
+  mm_count?: number
+  stats?: Record<string, number>
+  /** A desk's own key; the backend reports one online market maker's, or '' when none is. */
   mm_pubkey: string
   program_id: string
   usdc_mint: string
   dry_run: boolean
-  price: { source?: string; spot: number; spotAgeMs: number; vol: number; expiries?: number }
+  /** `spot` is null when the backend has no fresh market maker. */
+  price: { source?: string; spot: number | null; spotAgeMs: number; vol: number; expiries?: number }
   /** Every asset the desk prices. Only `tradable` ones (SOL and assets listed on chain) can be opened; the rest are quote-only. */
   assets?: DeskAsset[]
   exposure: {
@@ -38,6 +49,8 @@ export type DeskAsset = {
   mint?: string | null
   decimals?: number | null
   expiry_time_of_day?: number | null
+  /** Backend only: how many market makers price it. */
+  mm_count?: number
 }
 export type DeskExpiry = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; strikes: number[] }
 export type BoardCell = {
@@ -50,6 +63,9 @@ export type BoardCell = {
   implied_vol: number
   price_source: string
   instrument: string | null
+  /** Backend only: the market maker that quoted this cell, and its fee. */
+  mm_pubkey?: string
+  fee_pct?: number
 }
 export type BoardRow = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; quotes: BoardCell[] }
 export type Board = {
@@ -69,6 +85,8 @@ export type Board = {
   mm_pubkey: string
   generated_at: number
   expiries: BoardRow[]
+  /** Backend only: how many market makers' boards were merged. */
+  mm_count?: number
 }
 export type Quote = {
   type: 'rfq_response'
@@ -85,6 +103,10 @@ export type Quote = {
   forward_price: number
   implied_vol: number
   fee_pct: number | null
+  /** Backend only: the winning market maker's name, valid quotes received, and market makers asked. */
+  mm_name?: string
+  quotes_received?: number
+  mms_asked?: number
 }
 export type Decline = { type: 'rfq_decline'; rfq_id: string; reason: string }
 export type SignResponse = { type: 'sign_response'; request_id: string; tx_base64: string; signature?: string }
@@ -104,20 +126,31 @@ export type RfqRequest = {
 }
 
 const LS_KEY = 'paytience.mmUrl'
-const LOCAL = 'http://localhost:8787'
+/** A backend, then a desk, running next to the browser. */
+const LOCAL = ['http://localhost:8080', 'http://localhost:8787']
 
+/** The persisted `?mm=` override, if any. */
+function savedOverride(): string | null {
+  try {
+    return localStorage.getItem(LS_KEY)
+  } catch {
+    return null /* storage unavailable */
+  }
+}
+
+/** The saved override always comes first, so resolveDesk can tell when it failed. */
 export function mmUrlCandidates(): string[] {
   const out: string[] = []
   try {
     const q = new URLSearchParams(window.location.search).get('mm')
     if (q) localStorage.setItem(LS_KEY, q.replace(/\/+$/, ''))
-    const saved = localStorage.getItem(LS_KEY)
-    if (saved) out.push(saved)
   } catch {
     /* storage unavailable */
   }
-  if (MM_URL_DEFAULT) out.push(MM_URL_DEFAULT.replace(/\/+$/, ''))
-  out.push(LOCAL)
+  const saved = savedOverride()
+  if (saved) out.push(saved)
+  if (API_URL_DEFAULT) out.push(API_URL_DEFAULT.replace(/\/+$/, ''))
+  out.push(...LOCAL)
   return [...new Set(out)]
 }
 
@@ -192,13 +225,28 @@ export class DeskClient {
   faucet(pubkey: string, asset?: string) { return this.post<FaucetResult>('/faucet', asset ? { pubkey, asset } : { pubkey }) }
 }
 
-/** Try each candidate URL until one answers /health. */
+/** True when `health` came from the PAYtience backend rather than a single desk. */
+export const isBackend = (health: DeskHealth | null | undefined) => health?.service === 'paytience-backend'
+
+/** Try each candidate URL until a backend or a desk answers /health. */
 export async function resolveDesk(): Promise<{ client: DeskClient; health: DeskHealth } | null> {
-  for (const url of mmUrlCandidates()) {
+  const candidates = mmUrlCandidates()
+  const saved = savedOverride()
+  for (const url of candidates) {
     const client = new DeskClient(url)
     try {
       const health = await client.health(3500)
-      if (health && typeof health.mm_pubkey === 'string') return { client, health }
+      if (health && (isBackend(health) || typeof health.mm_pubkey === 'string')) {
+        // The saved override is tried first, so anything else answering means it is stale.
+        if (saved && url !== saved) {
+          try {
+            localStorage.removeItem(LS_KEY)
+          } catch {
+            /* storage unavailable */
+          }
+        }
+        return { client, health }
+      }
     } catch {
       /* try the next one */
     }

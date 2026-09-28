@@ -6,7 +6,7 @@ import Tabs from '../components/Tabs'
 import { SortIcon, FilterIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
 import { CALLS, PUTS, CHAINS, iconFor, marketHref, isRwa, isPreStocks, assetName, type Market } from '../data/markets'
-import { priceSource, type Board, type Product } from '../lib/mm'
+import { isBackend, priceSource, type Board, type Product } from '../lib/mm'
 
 type Tab = 'call' | 'put'
 type SortKey = 'asset' | 'chain' | 'maxApr' | 'minApr'
@@ -103,8 +103,17 @@ export default function Earn() {
 
   const toggleSort = (key: SortKey) => setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
 
-  // The cap bar is the desk's real aggregate exposure against its hard notional cap.
-  const cap = health ? Math.min(100, (health.exposure.totalUsd / health.exposure.capTotalUsd) * 100) : 0
+  // The cap bar is the desk's real aggregate exposure against its hard notional cap; the
+  // backend sums both over every market maker online (all zero when none is).
+  const cap = health && health.exposure.capTotalUsd > 0 ? Math.min(100, (health.exposure.totalUsd / health.exposure.capTotalUsd) * 100) : 0
+  const mmCount = health?.mm_count ?? 0
+  const capLabel = !health
+    ? status === 'offline' ? 'market-maker backend offline' : 'connecting…'
+    : !isBackend(health)
+      ? `${cap.toFixed(2)}% of desk cap used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet`
+      : mmCount === 0
+        ? 'no market maker online'
+        : `${cap.toFixed(2)}% of market-maker capacity used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} across ${mmCount} market maker${mmCount === 1 ? '' : 's'} on devnet`
 
   return (
     <section className="page">
@@ -113,9 +122,7 @@ export default function Earn() {
         <div className="strip">
           <div className="strip-track">
             <div className="cap-fill" style={{ width: `${cap}%` }} />
-            <span className="cap-label">
-              {health ? `${cap.toFixed(2)}% of desk cap used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet` : status === 'offline' ? 'market-maker desk offline' : 'connecting to desk…'}
-            </span>
+            <span className="cap-label">{capLabel}</span>
           </div>
         </div>
         <div className="tabs-row">

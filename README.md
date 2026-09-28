@@ -12,6 +12,7 @@ It works for SOL, bridged BTC and ETH, tokenized US stocks (TSLA, NVDA, SPY, …
 | --- | --- |
 | [dashboard-breezepocket](https://github.com/BreezePocket/dashboard-breezepocket) (this repo) | The PAYtience web app |
 | [core](https://github.com/BreezePocket/core) | Anchor program: atomic lock, upfront yield, permissionless settlement |
+| [backend-paytience](https://github.com/BreezePocket/backend-paytience) | PAYtience backend: the app's API. Auctions each quote across every connected market maker and routes co-signing to the winner |
 | [MM-system-breezepocket](https://github.com/BreezePocket/MM-system-breezepocket) | Market-maker desk: prices off real option markets and co-signs trades |
 
 ---
@@ -155,17 +156,24 @@ npm run dev          # http://localhost:5173
 
 The RPC defaults to public devnet. Set `VITE_SOLANA_RPC` / `VITE_SOLANA_WS` in `.env` for a keyed endpoint.
 
-### Run the desk
+### Run the backend and a desk
 
-```bash
-cd ../MM-system-breezepocket
-npm start                                        # PRICE_SOURCE=deribit; REST on :8787
-cloudflared tunnel --url http://localhost:8787   # public URL for the deployed app
+The app talks to the PAYtience backend (production: https://api.paytience.app). Each market-maker desk connects outbound to the backend over WebSockets. The backend sends every quote request to all connected desks, returns the best quote, merges their yield boards, and routes co-signing to the desk that won.
+
+```
+PAYtience app ──REST──▶ backend (:8080) ◀──WebSocket── market-maker desks
 ```
 
-The app finds the desk in this order: `?mm=<url>` (remembered in localStorage), then `VITE_MM_URL` from the build, then `http://localhost:8787`.
+```bash
+cd ../backend-paytience
+cargo run --release                              # REST + WebSockets on :8080 (needs USDC_MINT, MM_ALLOWLIST)
+cd ../MM-system-breezepocket
+AGGREGATOR_URL=ws://127.0.0.1:8080 npm start     # desk dials the backend; its own REST stays on :8787
+```
 
-Desk endpoints the app uses: `GET /expiries`, `GET /board`, `GET /assets`, `POST /rfq`, `POST /sign`, `POST /faucet`.
+The app finds its API in this order: `?mm=<url>` (remembered in localStorage, and forgotten once another candidate answers instead), then `VITE_API_URL` from the build (`VITE_MM_URL` is the legacy name), then a local backend on `http://localhost:8080`, then a local desk on `http://localhost:8787`. The backend's REST API is a superset of a desk's, so `?mm=` can still point at a single desk.
+
+Endpoints the app uses: `GET /health`, `GET /expiries`, `GET /board`, `POST /rfq`, `POST /sign`, `GET`/`POST /faucet`.
 
 ### Routes
 
@@ -177,7 +185,7 @@ Desk endpoints the app uses: `GET /expiries`, `GET /board`, `GET /assets`, `POST
 | `/dashboard` | Income, chart and positions, with **Settle** once a price is posted. `?as=<pubkey>` views any wallet read-only. |
 | `/points`, `/leaderboard` | Points, referrals and leaderboard (preview) |
 
-Key files: `src/pages/EarnDetail.tsx` (quote and open flow), `src/lib/program.ts` (on-chain client), `src/lib/mm.ts` (desk client), `src/idl/` (Anchor IDL).
+Key files: `src/pages/EarnDetail.tsx` (quote and open flow), `src/lib/program.ts` (on-chain client), `src/lib/mm.ts` (backend and desk client), `src/idl/` (Anchor IDL).
 
 ### Deploy
 
