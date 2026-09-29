@@ -12,20 +12,19 @@ const LINKS = [
   { to: '/leaderboard', label: 'Leaderboard' },
 ]
 
-/** The backend reports how many market makers are online; a raw desk is one. */
+/** The backend says whether quotes are live, never how many market makers are behind them. */
 const onlineTitle = (health: DeskHealth | null) => {
   const spot = health?.price.spot
   const sol = typeof spot === 'number' ? ` · SOL $${spot.toFixed(2)}` : ''
   if (!isBackend(health)) return `Desk online${sol}`
-  const n = health?.mm_count ?? 0
-  return n === 0 ? 'No market maker online' : `${n} market maker${n === 1 ? '' : 's'} online${sol}`
+  return health?.ok ? `Live quotes${sol}` : 'Quotes unavailable'
 }
 
 export default function Nav() {
   const { status, health } = useDesk()
   const deskTitle = status === 'online' ? onlineTitle(health) : status === 'offline' ? 'Market makers unreachable' : 'Connecting to market makers…'
-  // A reachable backend with no market maker online cannot quote, so the dot says so too.
-  const dot = status === 'online' && isBackend(health) && !health?.mm_count ? 'offline' : status
+  // A reachable backend that cannot quote right now shows as offline too.
+  const dot = status === 'online' && isBackend(health) && !health?.ok ? 'offline' : status
   return (
     <nav className="nav">
       <NavLink to="/" className="nav-logo" aria-label="PAYtience home">

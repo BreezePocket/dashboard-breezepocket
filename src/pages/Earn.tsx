@@ -106,14 +106,13 @@ export default function Earn() {
   // The cap bar is the desk's real aggregate exposure against its hard notional cap; the
   // backend sums both over every market maker online (all zero when none is).
   const cap = health && health.exposure.capTotalUsd > 0 ? Math.min(100, (health.exposure.totalUsd / health.exposure.capTotalUsd) * 100) : 0
-  const mmCount = health?.mm_count ?? 0
   const capLabel = !health
     ? status === 'offline' ? 'market-maker backend offline' : 'connecting…'
     : !isBackend(health)
       ? `${cap.toFixed(2)}% of desk cap used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet`
-      : mmCount === 0
-        ? 'no market maker online'
-        : `${cap.toFixed(2)}% of market-maker capacity used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} across ${mmCount} market maker${mmCount === 1 ? '' : 's'} on devnet`
+      : !health.ok
+        ? 'no live quotes right now'
+        : `${cap.toFixed(2)}% of market-maker capacity used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet`
 
   return (
     <section className="page">

@@ -410,7 +410,6 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                 {quote && (
                   <small className="quote-meta">
                     Binding quote · quoted by {quote.mm_name || shortAddr(quote.mm_pubkey)}
-                    {(quote.quotes_received ?? 0) > 1 && ` · best of ${quote.quotes_received} quotes`}
                     {' '}· {quote.instrument ?? sourceLabel(quote.price_source)} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
                   </small>
                 )}

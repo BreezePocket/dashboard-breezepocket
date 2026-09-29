@@ -15,10 +15,9 @@ export type Product = 'sell_sol' | 'buy_sol'
 
 export type DeskHealth = {
   ok: boolean
-  /** Backend only: 'paytience-backend', its version, how many market makers are online, and its counters. */
+  /** Backend only: 'paytience-backend', its version and its counters (never how many market makers there are). */
   service?: string
   version?: string
-  mm_count?: number
   stats?: Record<string, number>
   /** A desk's own key; the backend reports one online market maker's, or '' when none is. */
   mm_pubkey: string
@@ -49,8 +48,6 @@ export type DeskAsset = {
   mint?: string | null
   decimals?: number | null
   expiry_time_of_day?: number | null
-  /** Backend only: how many market makers price it. */
-  mm_count?: number
 }
 export type DeskExpiry = { expiry_ts: number; days: number; forward_price: number; atm_vol: number | null; strikes: number[] }
 export type BoardCell = {
@@ -85,8 +82,6 @@ export type Board = {
   mm_pubkey: string
   generated_at: number
   expiries: BoardRow[]
-  /** Backend only: how many market makers' boards were merged. */
-  mm_count?: number
 }
 export type Quote = {
   type: 'rfq_response'
@@ -103,10 +98,8 @@ export type Quote = {
   forward_price: number
   implied_vol: number
   fee_pct: number | null
-  /** Backend only: the winning market maker's name, valid quotes received, and market makers asked. */
+  /** Backend only: the winning market maker's name. */
   mm_name?: string
-  quotes_received?: number
-  mms_asked?: number
 }
 export type Decline = { type: 'rfq_decline'; rfq_id: string; reason: string }
 export type SignResponse = { type: 'sign_response'; request_id: string; tx_base64: string; signature?: string }
