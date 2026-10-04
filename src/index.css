@@ -649,6 +649,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .chip-menu img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
 .chip-stack { display: flex; flex: none; }
 .chip-stack img + img { margin-left: -8px; }
+/* With a price the header is three columns, so the price sits in the true middle of the row. */
+.ed-head:has(> .ed-spot) { display: grid; grid-template-columns: 1fr auto 1fr; }
+.ed-head:has(> .ed-spot) > .ed-head-group:last-child { justify-self: end; }
 .ed-spot { display: flex; align-items: center; gap: 8px; font-family: var(--mono); white-space: nowrap; }
 .ed-spot small { display: flex; align-items: center; font-size: 13px; color: rgba(0, 0, 0, 0.6); white-space: nowrap; }
 .ed-spot b { font-size: 16px; font-weight: 700; }
