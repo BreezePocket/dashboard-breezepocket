@@ -649,7 +649,19 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .chip-menu img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
 .chip-stack { display: flex; flex: none; }
 .chip-stack img + img { margin-left: -8px; }
-.ed-price { font-family: var(--mono); font-weight: 700; }
+.ed-spot { display: flex; align-items: center; gap: 8px; font-family: var(--mono); white-space: nowrap; }
+.ed-spot small { display: flex; align-items: center; font-size: 13px; color: rgba(0, 0, 0, 0.6); white-space: nowrap; }
+.ed-spot b { font-size: 16px; font-weight: 700; }
+.live-dot { flex: none; margin-right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: live-pulse 2s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: 0.35; } }
+/* A phone has no room for the asset name beside the gauge: "price now $121.16". */
+@media (max-width: 640px) {
+  .ed-spot small span { display: none; }
+  .ed-spot { gap: 6px; }
+  .ed-spot small { font-size: 12px; }
+  .ed-head-group { gap: 8px; padding: 0 8px; }
+  .ed-head .chip-wrap { padding-right: 8px; }
+}
 /* Hover label: a small dark bubble under the element, shown at once (a native title is slow and easy to miss). */
 .has-tip { position: relative; cursor: help; }
 .has-tip::after {

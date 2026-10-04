@@ -90,7 +90,8 @@ const stepFor = (x: number) => 10 ** Math.floor(Math.log10(x))
 
 /* ---------------------------------------------------------------------------------------- */
 
-function HeaderChips({ asset, type }: { asset: string; type: OptionType }) {
+/** The asset picker with, when the market is priced, its live price labelled right beside it. */
+function HeaderChips({ asset, type, spot }: { asset: string; type: OptionType; spot?: number | null }) {
   const navigate = useNavigate()
   const { health } = useDesk()
   // Assets no market maker is quoting cannot be picked. Nothing is blocked until the desk has answered.
@@ -103,6 +104,12 @@ function HeaderChips({ asset, type }: { asset: string; type: OptionType }) {
         options={assetsFor(type).map((a) => ({ id: a, label: a, icon: iconFor(a), disabled: quoted !== null && !quoted.has(a) }))}
         onChange={(a) => navigate(marketHref(findMarket(a, type)))}
       />
+      {spot !== undefined && (
+        <div className="ed-spot">
+          <small><i className="live-dot" /><span>{asset}&nbsp;</span>price now</small>
+          <b>{spot ? fmtPrice(spot) : '—'}</b>
+        </div>
+      )}
     </div>
   )
 }
@@ -320,9 +327,8 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
       <PageTitle>Earn yield upfront</PageTitle>
       <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
-          <HeaderChips asset={asset} type={type} />
+          <HeaderChips asset={asset} type={type} spot={spot} />
           <div className="ed-head-group">
-            <span className="ed-price">{spot ? fmtPrice(spot) : '—'}</span>
             <div className="gauge has-tip" data-tip={`${capPct.toFixed(0)}% filled`}>
               <div className="gauge-arc" style={{ ['--deg' as string]: `${(capPct / 100) * 180}deg` }} />
               <small>{capPct.toFixed(0)}% of cap</small>
@@ -549,10 +555,9 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
       <PageTitle>Earn yield upfront</PageTitle>
       <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
-          <HeaderChips asset={asset} type={type} />
+          <HeaderChips asset={asset} type={type} spot={spot} />
           <div className="ed-head-group">
             <span className="tag-quote" title="Live indicative quote; not listed on the devnet program yet">QUOTE</span>
-            <span className="ed-price">{spot ? fmtPrice(spot) : '—'}</span>
           </div>
         </div>
 
