@@ -24,12 +24,12 @@ export function Mark({ className, id = 'pt-mark' }: { className?: string; id?: s
   )
 }
 
-/** Mark + "PAYtience" wordmark. `size` is the mark height in px. */
+/** Mark + "PAYtience.app" wordmark. `size` is the mark height in px. */
 export function Logo({ size = 40, stacked = false, light = false }: { size?: number; stacked?: boolean; light?: boolean }) {
   return (
     <span className={`logo ${stacked ? 'logo-stacked' : ''} ${light ? 'logo-light' : ''}`} style={{ ['--logo-size' as string]: `${size}px` }}>
       <Mark className="logo-mark" id={stacked ? 'pt-mark-s' : 'pt-mark'} />
-      <span className="logo-word"><b>PAY</b><span>tience</span></span>
+      <span className="logo-word"><b>PAY</b><span>tience.app</span></span>
     </span>
   )
 }
