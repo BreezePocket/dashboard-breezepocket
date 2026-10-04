@@ -5,12 +5,13 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { PublicKey, Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import PageTitle from '../components/PageTitle'
-import Terminal from '../components/Terminal'
+import Terminal, { type TermTabs } from '../components/Terminal'
 import Dropdown from '../components/Dropdown'
+import { BackIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
 import { shortAddr } from '../components/WalletButton'
 import { useBalances } from '../hooks/useBalances'
-import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
+import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketsFor, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
 import {
   collateralOf, priceSource, productForType, productLabel, randomNonce,
   type Board, type BoardCell, type DeskExpiry, type FaucetInfo, type Product, type Quote,
@@ -28,9 +29,19 @@ const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MO
 const sourceLabel = (src: string) => src.replace(/_synthetic$/, '')
 const tone = (apr: number) => (apr > 33 ? 'red' : apr > 20 ? 'amber' : 'green')
 const TYPES: { id: OptionType; label: string }[] = [
-  { id: 'call', label: 'Sell high' },
-  { id: 'put', label: 'Buy low' },
+  { id: 'put', label: 'Buy Low' },
+  { id: 'call', label: 'Sell High' },
 ]
+
+/** The terminal's strategy tabs for one asset; a strategy the asset has no market for cannot be picked. */
+function useStrategyTabs(asset: string, type: OptionType): TermTabs {
+  const navigate = useNavigate()
+  return {
+    items: TYPES.map((t) => ({ ...t, disabled: marketsFor(asset, t.id).length === 0 })),
+    active: type,
+    onChange: (t) => navigate(marketHref(findMarket(asset, t as OptionType))),
+  }
+}
 
 type Flow =
   | { step: 'idle' }
@@ -83,25 +94,28 @@ const stepFor = (x: number) => 10 ** Math.floor(Math.log10(x))
 
 function HeaderChips({ asset, type, extra }: { asset: string; type: OptionType; extra?: React.ReactNode }) {
   const navigate = useNavigate()
+  const { health } = useDesk()
+  // Assets no market maker is quoting cannot be picked. Nothing is blocked until the desk has answered.
+  const quoted = health?.assets ? new Set(health.assets.map((a) => a.asset)) : null
   return (
     <div className="ed-head-group">
       <Dropdown
         label="Asset"
         value={asset}
-        options={assetsFor(type).map((a) => ({ id: a, label: a, icon: iconFor(a) }))}
+        options={assetsFor(type).map((a) => ({ id: a, label: a, icon: iconFor(a), disabled: quoted !== null && !quoted.has(a) }))}
         onChange={(a) => navigate(marketHref(findMarket(a, type)))}
       />
-      <Dropdown label="Strategy" value={type} options={TYPES} onChange={(t) => navigate(marketHref(findMarket(asset, t as OptionType)))} />
       {extra}
     </div>
   )
 }
 
 function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
+  const tabs = useStrategyTabs(asset, type)
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}`}>
+      <Terminal title={`~/earn/${asset}`} tabs={tabs}>
         <div className="ed-head">
           <HeaderChips asset={asset} type={type} />
         </div>
@@ -114,8 +128,7 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
               is priced and listed on chain it uses the same market maker, expiries and settlement flow as every other asset.
             </p>
             <div className="soon-links">
-              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'call'))}><span className="ic"><img src={iconFor('SOL')} alt="" /></span>SOL Sell high</Link>
-              <Link className="btn-earn" to={marketHref(findMarket('SOL', 'put'))}><span className="ic"><img src={iconFor('USDC')} alt="" /></span>SOL Buy low</Link>
+              <Link className="btn-earn" to="/"><span className="ic"><BackIcon /></span>Return back to dashboard</Link>
             </div>
           </div>
         </div>
@@ -133,6 +146,7 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
  */
 function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: string; mint: string | null; decimals: number; type: OptionType; expiryParam: number | null }) {
   const navigate = useNavigate()
+  const tabs = useStrategyTabs(asset, type)
   const product = productForType(type)
   const isSol = mint === null
   const collateral = isSol ? collateralOf(product) : product === 'sell_sol' ? asset : 'USDC'
@@ -311,7 +325,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}/${collateral}/${label}`}>
+      <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
           <HeaderChips
             asset={asset}
@@ -487,6 +501,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
  */
 function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: OptionType; expiryParam: number | null }) {
   const navigate = useNavigate()
+  const tabs = useStrategyTabs(asset, type)
   const product = productForType(type)
   const { client, health, status } = useDesk()
   const desk = health?.assets?.find((a) => a.asset === asset) ?? null
@@ -549,7 +564,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}/${collateral}/${label}`}>
+      <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
           <HeaderChips
             asset={asset}

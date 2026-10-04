@@ -269,7 +269,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 }
 .term-tab + .term-tab { margin-left: -14px; }
 .term-tab-bg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; color: #3d3d3d; }
-.term-tab:hover .term-tab-bg { color: #2a2a2a; }
+.term-tab:hover:not(:disabled) .term-tab-bg { color: #2a2a2a; }
+.term-tab:disabled { cursor: not-allowed; color: rgba(255, 255, 255, 0.3); }
+.term-tab:disabled .term-tab-dot { background: rgba(255, 255, 255, 0.15); }
 .term-tab.is-active { z-index: 1; color: #fff; }
 .term-tab.is-active .term-tab-bg { color: #000; filter: drop-shadow(6px 6px 6px var(--shadow)); }
 .term-tab-dot { flex: none; width: 12.8px; height: 12.8px; border-radius: 10px; background: rgba(255, 255, 255, 0.35); }
@@ -640,7 +642,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   white-space: nowrap;
   text-align: left;
 }
-.chip-menu button:hover { background: var(--bg); }
+.chip-menu button:hover:not(:disabled) { background: var(--bg); }
+.chip-menu button:disabled { cursor: not-allowed; color: rgba(0, 0, 0, 0.35); }
+.chip-menu button:disabled img { filter: grayscale(1); opacity: 0.45; }
 .chip-menu button.on { background: var(--green); color: #fff; }
 .chip-menu img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
 .chip-stack { display: flex; flex: none; }
@@ -1243,6 +1247,7 @@ body[data-theme="dark"] .wallet-adapter-modal-button-close svg { fill: #dadada !
 .soon-panel img { width: 64px; height: 64px; border-radius: 50%; }
 .soon-panel h2 { font-size: 24px; line-height: 30px; }
 .soon-panel p { max-width: 620px; color: rgba(0, 0, 0, 0.7); }
+.back-icon { width: 22px; height: 22px; }
 .soon-links { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
 
 /* ---------- Dashboard ---------- */

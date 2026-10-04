@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import Ribbon from './Ribbon'
 
-type TermTabs = { items: { id: string; label: string }[]; active: string; onChange: (id: string) => void }
+export type TermTabs = { items: { id: string; label: string; disabled?: boolean }[]; active: string; onChange: (id: string) => void }
 /** `tabs` replaces the single title ribbon with one ribbon per tab. */
 type Props = { title: string; children: ReactNode; className?: string; style?: CSSProperties; tabs?: TermTabs }
 
@@ -18,6 +18,7 @@ export default function Terminal({ title, children, className = '', style, tabs 
                 role="tab"
                 aria-selected={t.id === tabs.active}
                 className={`term-tab ${t.id === tabs.active ? 'is-active' : ''}`}
+                disabled={t.disabled}
                 onClick={() => tabs.onChange(t.id)}
               >
                 <Ribbon className="term-tab-bg" />

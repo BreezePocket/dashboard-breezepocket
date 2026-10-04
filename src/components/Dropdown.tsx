@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Chevron } from './Icons'
 
 /** `icons` shows several overlapping logos, for an option that stands for many (e.g. "All Chains"). */
-export type DropdownOption = { id: string; label: string; icon?: string; icons?: string[] }
+export type DropdownOption = { id: string; label: string; icon?: string; icons?: string[]; disabled?: boolean }
 
 type Props = {
   options: DropdownOption[]
@@ -62,6 +62,7 @@ export default function Dropdown({ options, value, onChange, label, prefix = '' 
                 role="option"
                 aria-selected={o.id === value}
                 className={o.id === value ? 'on' : ''}
+                disabled={o.disabled}
                 onClick={() => { onChange(o.id); setOpen(false) }}
               >
                 {o.icons && <span className="chip-stack">{o.icons.map((i) => <img key={i} src={i} alt="" />)}</span>}
