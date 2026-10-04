@@ -22,9 +22,8 @@ import { explorerAddr, explorerTx } from '../lib/config'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const ordinal = (n: number) => n + (['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th')
 const expiryShort = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]}_${d.getUTCDate()}` }
-const pad2 = (n: number) => String(n).padStart(2, '0')
 // The hour comes from the expiry itself: Deribit (SOL) settles at 08:00 UTC, US listed options at the 20:00 UTC close.
-const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC` }
+const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()}` }
 // Quote source as shown to users: the desk's internal `_synthetic` tag is dropped.
 const sourceLabel = (src: string) => src.replace(/_synthetic$/, '')
 const tone = (apr: number) => (apr > 33 ? 'red' : apr > 20 ? 'amber' : 'green')
@@ -92,7 +91,7 @@ const stepFor = (x: number) => 10 ** Math.floor(Math.log10(x))
 
 /* ---------------------------------------------------------------------------------------- */
 
-function HeaderChips({ asset, type, extra }: { asset: string; type: OptionType; extra?: React.ReactNode }) {
+function HeaderChips({ asset, type }: { asset: string; type: OptionType }) {
   const navigate = useNavigate()
   const { health } = useDesk()
   // Assets no market maker is quoting cannot be picked. Nothing is blocked until the desk has answered.
@@ -105,7 +104,6 @@ function HeaderChips({ asset, type, extra }: { asset: string; type: OptionType; 
         options={assetsFor(type).map((a) => ({ id: a, label: a, icon: iconFor(a), disabled: quoted !== null && !quoted.has(a) }))}
         onChange={(a) => navigate(marketHref(findMarket(a, type)))}
       />
-      {extra}
     </div>
   )
 }
@@ -318,30 +316,16 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   const reset = () => { setFlow({ step: 'idle' }); lastQuote.current = null; setStrike(null) }
   const label = expiryTs ? expiryShort(expiryTs) : '…'
   const under = asset
-  const source = isSol
-    ? 'Deribit sol_usdc index, the price the program settles against'
-    : `${desk?.underlying ?? asset} spot, from ${priceSource(desk?.venue ?? '', desk?.underlying ?? asset)}`
 
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
       <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
-          <HeaderChips
-            asset={asset}
-            type={type}
-            extra={
-              <Dropdown
-                label="Expiry"
-                value={expiryTs ? String(expiryTs) : ''}
-                options={expiries.map((e) => ({ id: String(e.expiry_ts), label: `${expiryShort(e.expiry_ts)} · ${Math.round(e.days)}d` }))}
-                onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
-              />
-            }
-          />
+          <HeaderChips asset={asset} type={type} />
           <div className="ed-head-group">
-            <span className="ed-price" title={source}>{spot ? fmtPrice(spot) : '—'}</span>
-            <div className="gauge" title={health ? `${capUsed.toFixed(0)} of ${health.exposure.capPerExpiryUsd} USD market-maker capacity used for this expiry` : 'Market-maker capacity'}>
+            <span className="ed-price">{spot ? fmtPrice(spot) : '—'}</span>
+            <div className="gauge has-tip" data-tip={`${capPct.toFixed(0)}% filled`}>
               <div className="gauge-arc" style={{ ['--deg' as string]: `${(capPct / 100) * 180}deg` }} />
               <small>{capPct.toFixed(0)}% of cap</small>
             </div>
@@ -358,7 +342,17 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
 
           <div className="ed-prompt">
             <span>
-              Choose the price you want to {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
+              Choose the price you want to {type === 'call' ? 'sell' : 'buy'} {asset} on{' '}
+              {expiryTs ? (
+                <span className="ed-pick">
+                  <Dropdown
+                    label="Date"
+                    value={String(expiryTs)}
+                    options={expiries.map((e) => ({ id: String(e.expiry_ts), label: expiryLong(e.expiry_ts) }))}
+                    onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
+                  />
+                </span>
+              ) : '…'}
               {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
             </span>
           </div>
@@ -566,21 +560,10 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
       <PageTitle>Earn yield upfront</PageTitle>
       <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
         <div className="ed-head">
-          <HeaderChips
-            asset={asset}
-            type={type}
-            extra={
-              <Dropdown
-                label="Expiry"
-                value={expiryTs ? String(expiryTs) : ''}
-                options={expiries.map((e) => ({ id: String(e.expiry_ts), label: `${expiryShort(e.expiry_ts)} · ${Math.round(e.days)}d` }))}
-                onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
-              />
-            }
-          />
+          <HeaderChips asset={asset} type={type} />
           <div className="ed-head-group">
             <span className="tag-quote" title="Live indicative quote; not listed on the devnet program yet">QUOTE</span>
-            <span className="ed-price" title={`${under} spot, from ${desk?.venue === 'deribit' ? `the Deribit ${under.toLowerCase()}_usdc index` : desk?.venue === 'prestocks' ? 'the PreStocks token price' : 'Alpaca'}`}>{spot ? fmtPrice(spot) : '—'}</span>
+            <span className="ed-price">{spot ? fmtPrice(spot) : '—'}</span>
           </div>
         </div>
 
@@ -595,7 +578,17 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
 
           <div className="ed-prompt">
             <span>
-              Prices at which you could {type === 'call' ? 'sell' : 'buy'} {asset} on {expiryTs ? expiryLong(expiryTs) : '…'}
+              Prices at which you could {type === 'call' ? 'sell' : 'buy'} {asset} on{' '}
+              {expiryTs ? (
+                <span className="ed-pick">
+                  <Dropdown
+                    label="Date"
+                    value={String(expiryTs)}
+                    options={expiries.map((e) => ({ id: String(e.expiry_ts), label: expiryLong(e.expiry_ts) }))}
+                    onChange={(id) => navigate(marketHref(findMarket(asset, type), id))}
+                  />
+                </span>
+              ) : '…'}
               {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
             </span>
           </div>
