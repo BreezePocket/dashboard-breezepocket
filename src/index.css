@@ -788,9 +788,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   height: 38px;
   padding-left: 16px;
 }
-.amount-max { padding-right: 16px; font-size: 12px; cursor: pointer; }
+.amount-max { padding-right: 12px; font-size: 12px; cursor: pointer; }
 .amount-max:hover { text-decoration: underline; }
-.amount-steps { display: flex; flex-direction: column; margin-right: 8px; }
+.amount-steps { display: flex; flex-direction: column; margin-right: 8px; padding-left: 10px; border-left: 1px solid #000; }
 .amount-steps button { height: 16px; line-height: 12px; width: 20px; font-size: 14px; }
 .amount-steps button:hover { background: rgba(0, 0, 0, 0.08); border-radius: 3px; }
 .amount input {
@@ -863,9 +863,6 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .payoff-apr { display: flex; flex-direction: column; }
 .payoff-apr .big { font-family: var(--mono); font-size: 32px; line-height: 40px; font-weight: 500; }
 .payoff-apr .big + span { }
-.payoff-legend { display: flex; gap: 6px; }
-.payoff-legend li { width: 22px; height: 40px; border: 1px solid #000; border-radius: 4px; background: var(--surface2); }
-.payoff-legend li.on { background: var(--green); }
 .payoff-out {
   display: flex;
   align-items: flex-start;

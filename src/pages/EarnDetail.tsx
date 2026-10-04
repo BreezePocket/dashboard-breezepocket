@@ -9,7 +9,6 @@ import Terminal, { type TermTabs } from '../components/Terminal'
 import Dropdown from '../components/Dropdown'
 import { BackIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
-import { shortAddr } from '../components/WalletButton'
 import { useBalances } from '../hooks/useBalances'
 import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketsFor, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
 import {
@@ -256,7 +255,6 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
     ? baseToUsdc(BigInt(quote.yield_amount))
     : cell ? (cell.yield_pct / 100) * (product === 'sell_sol' ? (spot !== null ? qty * spot : NaN) : qty) : null
   const apr = quote?.apr_pct ?? cell?.apr_pct ?? null
-  const ttl = quote ? Math.max(0, Math.ceil((quote.valid_until - now) / 1000)) : null
   const balance = product === 'sell_sol' ? (isSol ? balances.sol : balances.asset) : balances.usdc
   const insufficient = connected && balance !== null && qty > balance
   const capUsed = health && expiryTs ? (health.exposure.perExpiry[String(expiryTs)]?.onChainUsd ?? 0) + (health.exposure.perExpiry[String(expiryTs)]?.reservedUsd ?? 0) : 0
@@ -415,16 +413,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                     ? `${fmtNum(yieldUsdc)} USDC upfront${quote ? '' : ' (indicative)'}`
                     : 'Select a price to see your premium'}
                 </span>
-                {quote && (
-                  <small className="quote-meta">
-                    Binding quote · quoted by {quote.mm_name || shortAddr(quote.mm_pubkey)}
-                    {' '}· {quote.instrument ?? sourceLabel(quote.price_source)} · protocol fee {quote.fee_pct ?? '—'}% · valid {ttl}s
-                  </small>
-                )}
               </div>
-              <ul className="payoff-legend" aria-hidden="true">
-                {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}
-              </ul>
             </div>
             <div className="payoff-bar"><span>On {label}</span></div>
             <div className="payoff-out">
@@ -617,9 +606,6 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                 </span>
                 {cell && <small className="quote-meta">{cell.instrument ?? sourceLabel(cell.price_source)} · implied vol {(cell.implied_vol * 100).toFixed(1)}%{board ? ` · protocol fee ${cell.fee_pct ?? board.fee_pct}%` : ''}</small>}
               </div>
-              <ul className="payoff-legend" aria-hidden="true">
-                {cells.map((c) => <li key={c.fixed_price} className={strike !== null && c.apr_pct >= (cell?.apr_pct ?? Infinity) ? 'on' : ''} />)}
-              </ul>
             </div>
             <div className="payoff-bar"><span>On {label}</span></div>
             <div className="payoff-out">
