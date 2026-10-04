@@ -18,9 +18,19 @@ export const iconFor = (symbol: string) =>
       ? `https://prestocks.com/logos/${symbol.toLowerCase()}.png`
       : `/icons/${symbol.toLowerCase()}.svg`
 
-/** Tokenized real-world assets, as opposed to native crypto. PreStocks count: they track private company shares. */
-const RWA = new Set([...PRESTOCKS, 'PAXG', 'XAGon', 'TSLAon', 'NVDAon', 'HYNIXon', 'SPYon', 'QQQon', 'AAPLon', 'MSFTon', 'AMZNon', 'GOOGLon', 'METAon', 'NFLXon', 'COINon', 'MSTRon'])
-export const isRwa = (asset: string) => RWA.has(asset)
+/** The asset filter on the Earn table. Everything that is not a stock, an ETF or a PreStocks token counts as crypto. */
+export type Category = 'crypto' | 'stocks' | 'etf' | 'prestocks'
+export const CATEGORIES: { id: Category; label: string }[] = [
+  { id: 'crypto', label: 'Crypto' },
+  { id: 'stocks', label: 'Stocks' },
+  { id: 'etf', label: 'ETF' },
+  { id: 'prestocks', label: 'Pre-stocks' },
+]
+const STOCKS = new Set(['TSLAon', 'NVDAon', 'HYNIXon', 'AAPLon', 'MSFTon', 'AMZNon', 'GOOGLon', 'METAon', 'NFLXon', 'COINon', 'MSTRon'])
+// XAGon tracks a silver ETF; PAXG is a gold-backed crypto token, so it stays under crypto.
+const ETFS = new Set(['SPYon', 'QQQon', 'XAGon'])
+export const categoryOf = (asset: string): Category =>
+  PRESTOCKS.has(asset) ? 'prestocks' : STOCKS.has(asset) ? 'stocks' : ETFS.has(asset) ? 'etf' : 'crypto'
 
 /** Long-form label for an asset, shown under the ticker on the Earn table. */
 const ASSET_NAMES: Record<string, string> = {

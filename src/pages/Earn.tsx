@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import PageTitle from '../components/PageTitle'
 import Terminal from '../components/Terminal'
-import Tabs from '../components/Tabs'
-import { SortIcon, FilterIcon } from '../components/Icons'
+import Dropdown from '../components/Dropdown'
+import { SortIcon, FilterIcon, Chevron } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
-import { CALLS, PUTS, CHAINS, iconFor, marketHref, isRwa, isPreStocks, assetName, type Market } from '../data/markets'
+import { CALLS, PUTS, CHAINS, iconFor, marketHref, isPreStocks, assetName, categoryOf, CATEGORIES, type Category, type ChainId, type Market } from '../data/markets'
 import { isBackend, priceSource, type Board, type Product } from '../lib/mm'
 
 type Tab = 'call' | 'put'
 type SortKey = 'asset' | 'chain' | 'maxApr' | 'minApr'
-type AssetClass = 'all' | 'rwa' | 'crypto'
+type GroupBy = 'none' | 'category' | 'chain'
 /** live: tradable on chain · quote: the desk streams a live price but cannot trade it · soon: neither. */
 type State = 'live' | 'quote' | 'soon'
 /** maxApr/minApr are the desk's live range, null when it is not quoting this market. */
@@ -21,10 +21,14 @@ const TABS = [
   { id: 'put' as Tab, label: 'Start Accumulating Cheap Asset' },
   { id: 'call' as Tab, label: 'Sell High Your Asset' },
 ]
-const CLASSES: { id: AssetClass; label: string }[] = [
-  { id: 'all', label: 'all assets' },
-  { id: 'rwa', label: 'RWAs only' },
-  { id: 'crypto', label: 'crypto only' },
+const CHAIN_OPTIONS = [
+  { id: 'all', label: 'All Chains' },
+  ...Object.entries(CHAINS).map(([id, c]) => ({ id, label: c.name, icon: c.icon })),
+]
+const GROUP_OPTIONS: { id: GroupBy; label: string }[] = [
+  { id: 'none', label: 'Group By: None' },
+  { id: 'category', label: 'Group By: Asset Type' },
+  { id: 'chain', label: 'Group By: Chain' },
 ]
 const PRODUCT: Record<Tab, Product> = { call: 'sell_sol', put: 'buy_sol' }
 
@@ -37,11 +41,14 @@ const aprRange = (b: Board | null) => {
 export default function Earn() {
   const [tab, setTab] = useState<Tab>('put')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
-  const [cls, setCls] = useState<AssetClass>('all')
-  const [onlyPre, setOnlyPre] = useState(false)
+  const [chain, setChain] = useState('all')
+  const [cats, setCats] = useState<Category[]>([])
+  const [query, setQuery] = useState('')
+  const [groupBy, setGroupBy] = useState<GroupBy>('none')
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { client, health, status } = useDesk()
+  const navigate = useNavigate()
   // Boards keyed `${asset}:${product}`, for every asset the desk prices.
   const [boards, setBoards] = useState<Record<string, Board>>({})
   const quoted = useMemo(() => new Map((health?.assets ?? []).map((a) => [a.asset, a])), [health])
@@ -88,8 +95,10 @@ export default function Earn() {
         minApr: range?.min ?? null,
       }
     })
-    if (cls !== 'all') src = src.filter((m) => isRwa(m.asset) === (cls === 'rwa'))
-    if (onlyPre) src = src.filter((m) => isPreStocks(m.asset))
+    if (chain !== 'all') src = src.filter((m) => String(m.chainId) === chain)
+    if (cats.length) src = src.filter((m) => cats.includes(categoryOf(m.asset)))
+    const q = query.trim().toLowerCase()
+    if (q) src = src.filter((m) => m.asset.toLowerCase().includes(q) || assetName(m.asset).toLowerCase().includes(q))
     // Unsorted, markets with a live price come first; Array.sort is stable, so each group keeps its order.
     if (!sort) return [...src].sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state])
     if (sort.key === 'maxApr' || sort.key === 'minApr') {
@@ -99,7 +108,20 @@ export default function Earn() {
     }
     const val = (m: Row) => (sort.key === 'asset' ? m.asset.toLowerCase() : CHAINS[m.chainId].name)
     return [...src].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir)
-  }, [tab, sort, cls, onlyPre, boards, quoted])
+  }, [tab, sort, chain, cats, query, boards, quoted])
+
+  // Grouped, each group keeps the order above; ungrouped is a single unnamed group.
+  const groups = useMemo<{ key: string; label: string | null; icon?: string; rows: Row[] }[]>(() => {
+    if (groupBy === 'category')
+      return CATEGORIES.map((c) => ({ key: c.id, label: c.label, rows: rows.filter((m) => categoryOf(m.asset) === c.id) })).filter((g) => g.rows.length)
+    if (groupBy === 'chain')
+      return (Object.keys(CHAINS).map(Number) as ChainId[])
+        .map((id) => ({ key: String(id), label: CHAINS[id].name, icon: CHAINS[id].icon, rows: rows.filter((m) => m.chainId === id) }))
+        .filter((g) => g.rows.length)
+    return [{ key: 'all', label: null, rows }]
+  }, [rows, groupBy])
+
+  const toggleCat = (id: Category) => setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
   const toggleSort = (key: SortKey) => setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
 
@@ -117,34 +139,38 @@ export default function Earn() {
   return (
     <section className="page">
       <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title="~/assets">
+      <Terminal title="~/assets" tabs={{ items: TABS, active: tab, onChange: (id) => setTab(id as Tab) }}>
         <div className="strip">
           <div className="strip-track">
             <div className="cap-fill" style={{ width: `${cap}%` }} />
             <span className="cap-label">{capLabel}</span>
           </div>
         </div>
-        <div className="tabs-row">
-          <Tabs items={TABS} active={tab} onChange={setTab} fit />
-          <label className="only-pre">
-            <input type="checkbox" checked={onlyPre} onChange={(e) => setOnlyPre(e.target.checked)} />
-            Show only preStocks
-          </label>
+        <div className="filter-bar">
+          <Dropdown label="Chain" options={CHAIN_OPTIONS} value={chain} onChange={setChain} />
+          <div className="chip-wrap" ref={menuRef}>
+            <button type="button" className={`chip ${cats.length ? 'on' : ''}`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+              <FilterIcon />
+              <span>Assets{cats.length ? ` · ${cats.length}` : ''}</span>
+              <Chevron />
+            </button>
+            {menu && (
+              <div className="chip-menu" role="menu">
+                {CATEGORIES.map((c) => (
+                  <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={cats.includes(c.id)} className={cats.includes(c.id) ? 'on' : ''} onClick={() => toggleCat(c.id)}>{c.label}</button>
+                ))}
+                {cats.length > 0 && <button type="button" role="menuitem" className="chip-clear" onClick={() => setCats([])}>Clear</button>}
+              </div>
+            )}
+          </div>
+          <input className="filter-search" type="search" placeholder="Filter Assets" aria-label="Filter assets" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Dropdown label="Group by" options={GROUP_OPTIONS} value={groupBy} onChange={(id) => setGroupBy(id as GroupBy)} />
         </div>
         <div className="tbl-wrap">
-          <div className="tbl" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) minmax(125px, max-content) minmax(125px, max-content) max-content' }}>
+          {/* Fixed APR and action columns, so nothing shifts between the two tabs. */}
+          <div className="tbl tbl-earn" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) 125px 125px 352px' }}>
             <div className="tbl-h sticky" role="columnheader">
               <button type="button" onClick={() => toggleSort('asset')} style={{ display: 'flex', alignItems: 'center' }}><SortIcon />Asset</button>
-              <div className="filter-wrap" ref={menuRef}>
-                <button type="button" className={`filter-btn ${cls !== 'all' ? 'on' : ''}`} aria-label="Filter assets" aria-expanded={menu} onClick={() => setMenu((v) => !v)}><FilterIcon /></button>
-                {menu && (
-                  <div className="filter-menu" role="menu">
-                    {CLASSES.map((c) => (
-                      <button key={c.id} type="button" role="menuitemradio" aria-checked={cls === c.id} className={cls === c.id ? 'on' : ''} onClick={() => { setCls(c.id); setMenu(false) }}>{c.label}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
             <div className="tbl-h" role="columnheader">
               <button type="button" onClick={() => toggleSort('chain')} style={{ display: 'flex', alignItems: 'center' }}><SortIcon />Chain</button>
@@ -157,17 +183,33 @@ export default function Earn() {
             </div>
             <div className="tbl-h end" role="columnheader" />
 
-            {rows.map((m) => {
+            {rows.length === 0 && <div className="tbl-empty">No assets match these filters.</div>}
+            {groups.flatMap((g) => [
+              g.label !== null && (
+                <div className="tbl-group" key={`group-${g.key}`}>
+                  {g.icon && <img src={g.icon} alt="" />}
+                  <b>{g.label}</b>
+                  <span>{g.rows.length}</span>
+                </div>
+              ),
+              ...g.rows.map((m) => {
               const chain = CHAINS[m.chainId]
-              const label = tab === 'call' ? `Sell High Your ${m.asset} Asset` : `Buy Low with ${m.collateral}`
+              const label = tab === 'call' ? `Sell High Your ${m.asset}` : `Buy Low with ${m.collateral}`
               const btnIcon = tab === 'call' ? iconFor(m.asset) : iconFor(m.collateral)
               const soon = m.state === 'soon'
+              // Live rows open the market from the asset cell too, like the button.
+              const AssetCell = (soon ? 'div' : Link) as React.ElementType
               // Only the desk's live quotes: a dash while it is not quoting this market.
               const apr = (v: number | null) => (v !== null && Number.isFinite(v) ? `${v.toFixed(2)}%` : '—')
+              // The whole row opens the market; the links inside keep it reachable by keyboard.
               return (
-                <ul className={`tbl-row ${soon ? 'is-soon' : 'is-live'}`} key={`${m.asset}-${m.collateral}-${m.type}`}>
+                <ul
+                  className={`tbl-row ${soon ? 'is-soon' : 'is-live'}`}
+                  key={`${m.asset}-${m.collateral}-${m.type}`}
+                  onClick={soon ? undefined : (e) => { if (!(e.target as HTMLElement).closest('a')) navigate(marketHref(m)) }}
+                >
                   <li className="tbl-c sticky">
-                    <div className="asset">
+                    <AssetCell className="asset" {...(soon ? {} : { to: marketHref(m), 'aria-label': label })}>
                       <img src={iconFor(m.asset)} alt={`The icon for ${m.asset}`} />
                       <div className="asset-id">
                         <span className="asset-tick">
@@ -180,7 +222,7 @@ export default function Earn() {
                         </span>
                         <small>{assetName(m.asset)}</small>
                       </div>
-                    </div>
+                    </AssetCell>
                   </li>
                   <li className="tbl-c"><div className="chain"><img src={chain.icon} alt={`The icon for ${chain.name}`} /><span>{chain.name}</span></div></li>
                   <li className="tbl-c end"><span className={`apr ${soon ? 'apr-soon' : ''}`}>{apr(m.maxApr)}</span></li>
@@ -194,7 +236,8 @@ export default function Earn() {
                   </li>
                 </ul>
               )
-            })}
+              }),
+            ])}
           </div>
           {rows.length === 0 && <div className="term-empty">~/assets: no markets match this filter</div>}
         </div>
