@@ -44,7 +44,7 @@ export default function Earn() {
   const [chain, setChain] = useState('all')
   const [cats, setCats] = useState<Category[]>([])
   const [query, setQuery] = useState('')
-  const [groupBy, setGroupBy] = useState<GroupBy>('none')
+  const [groupBy, setGroupBy] = useState<GroupBy>('category')
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { client, health, status } = useDesk()
