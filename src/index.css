@@ -341,7 +341,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; background: var(--bg); }
 .filter-bar .chip-wrap:last-child { margin-left: 0; }
 .filter-bar .chip.on { background: var(--green); color: #fff; }
-.filter-bar .chip svg:first-child { transform: none; opacity: 1; }
+.filter-bar .chip svg:first-child { width: 20px; height: 20px; transform: none; opacity: 1; }
 .chip-menu .chip-clear { justify-content: center; opacity: 0.65; }
 .filter-search {
   flex: 1 1 160px;
@@ -643,6 +643,8 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .chip-menu button:hover { background: var(--bg); }
 .chip-menu button.on { background: var(--green); color: #fff; }
 .chip-menu img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.chip-stack { display: flex; flex: none; }
+.chip-stack img + img { margin-left: -8px; }
 .ed-price { font-family: var(--mono); font-weight: 700; }
 .gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .gauge-arc {
