@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import Background from './components/Background'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import { DeskProvider } from './components/DeskProvider'
+import { useTheme } from './lib/theme'
 
 const TITLES: Record<string, string> = {
   '/': 'PAYtience | Get paid while you wait',
@@ -14,23 +14,31 @@ const TITLES: Record<string, string> = {
   '/leaderboard': 'PAYtience | Leaderboard',
 }
 
+/** The browser chrome on a phone takes the header's colour. */
+const THEME_COLOR = { light: '#ffffff', dark: '#06173f', vault: '#161616' }
+
 export default function App() {
   const { pathname } = useLocation()
   const path = pathname.replace(/\/+$/, '') || '/'
-  const dark = path === '/vaults' || path.startsWith('/vault/')
+  const [theme, toggleTheme] = useTheme()
+  // The vault pages are dark only, whichever theme is picked.
+  const applied = path === '/vaults' || path.startsWith('/vault/') ? 'vault' : theme
 
   useEffect(() => {
     document.title = TITLES[path] ?? (path.startsWith('/vault/') ? 'PAYtience | Vault' : 'PAYtience')
-    document.body.style.background = dark ? '#000' : ''
-    document.body.dataset.theme = dark ? 'dark' : 'light'
     window.scrollTo(0, 0)
-  }, [path, dark])
+  }, [path])
+
+  // The theme lives on <html>, so it also reaches the wallet dialog, which renders outside the app.
+  useEffect(() => {
+    document.documentElement.dataset.theme = applied
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[applied])
+  }, [applied])
 
   return (
     <DeskProvider>
-      <div className="app" data-theme={dark ? 'dark' : 'light'}>
-        <Background />
-        <Nav />
+      <div className="app">
+        <Nav theme={theme} onToggleTheme={toggleTheme} />
         <main className="main">
           <Outlet />
         </main>

@@ -11,7 +11,8 @@ export default function WalletButton() {
   return (
     <button
       type="button"
-      className="connect"
+      // A connected wallet shows its address, which must keep its case; only the call to action is set in capitals.
+      className={`connect ${addr ? 'is-connected' : ''}`}
       onClick={() => (addr ? disconnect() : setVisible(true))}
       title={addr ? 'Disconnect wallet' : 'Connect a Solana wallet'}
     >

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { PublicKey } from '@solana/web3.js'
 import PageTitle from '../components/PageTitle'
-import Terminal from '../components/Terminal'
+import Panel from '../components/Panel'
 import Tabs from '../components/Tabs'
 import { useDesk } from '../components/DeskProvider'
 import { usePositions } from '../hooks/usePositions'
@@ -80,7 +80,7 @@ export default function Dashboard() {
   const open = positions.filter((p) => !p.settled)
   const settled = positions.filter((p) => p.settled)
   const shown = tab === 'history' ? settled : open
-  const who = viewing ? `${shortAddr(viewing.toBase58())}${readOnly ? ' (read-only)' : ''}` : 'wallet not connected'
+  const who = viewing ? `${shortAddr(viewing.toBase58())}${readOnly ? ' (read-only)' : ''}` : 'Wallet not connected'
 
   const totals = useMemo(() => {
     // Yield and locked amounts in other listed assets are kept per symbol.
@@ -131,7 +131,7 @@ export default function Dashboard() {
     <section className="page">
       <PageTitle>Dashboard</PageTitle>
       <div className="grid-2">
-        <Terminal title="~/income">
+        <Panel title="Income">
           {positions.length ? (
             <div className="dash-income">
               <div className="dash-big">{incomeUsd !== null ? `$${fmtNum(incomeUsd)}` : '—'}<small>yield received upfront</small></div>
@@ -145,10 +145,10 @@ export default function Dashboard() {
               <small className="dash-foot">{positions.length} position{positions.length === 1 ? '' : 's'} · {open.length} open · ${fmtNum(totals.notional, 0)} notional at target</small>
             </div>
           ) : (
-            <div className="term-empty">~/income: {viewing ? (loading ? 'loading positions from devnet…' : 'no positions yet') : who}</div>
+            <div className="empty">{viewing ? (loading ? 'Loading positions from devnet…' : 'No positions yet') : who}</div>
           )}
-        </Terminal>
-        <Terminal title="~/chart">
+        </Panel>
+        <Panel title="Open notional by expiry">
           {byExpiry.length ? (
             <div className="dash-chart">
               {byExpiry.map(([exp, usd]) => (
@@ -160,12 +160,12 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="term-empty">~/dashboard/chart: {viewing ? 'no open notional' : who}</div>
+            <div className="empty">{viewing ? 'No open notional' : who}</div>
           )}
-        </Terminal>
+        </Panel>
       </div>
 
-      <Terminal title="~/positions">
+      <Panel>
         <Tabs items={TABS} active={tab} onChange={setTab} />
         {!viewing && (
           <div className="dash-lookup">
@@ -182,7 +182,7 @@ export default function Dashboard() {
         {tab === 'total' ? (
           <div className="tbl-wrap">
             <div className="tbl" style={{ gridTemplateColumns: 'repeat(5, minmax(max-content, 1fr))' }}>
-              {['Positions', 'Locked SOL', 'Locked USDC', 'Yield in SOL', 'Yield in USDC'].map((c, i) => <div key={c} className={`tbl-h ${i === 0 ? 'bold' : 'end'}`}>{c}</div>)}
+              {['Positions', 'Locked SOL', 'Locked USDC', 'Yield in SOL', 'Yield in USDC'].map((c, i) => <div key={c} className={`tbl-h ${i === 0 ? '' : 'end'}`}>{c}</div>)}
               <ul className="tbl-row">
                 <li className="tbl-c">{open.length} open · {settled.length} settled</li>
                 <li className="tbl-c end">{fmtNum(totals.lockedSol, 4)}</li>
@@ -194,8 +194,8 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="tbl-wrap">
-            <div className="tbl" style={{ gridTemplateColumns: `repeat(${COLS.length}, minmax(max-content, 1fr))` }}>
-              {COLS.map((c, i) => <div key={c} className={`tbl-h ${i === 0 ? 'sticky' : 'end'} ${c === 'Income' ? 'bold' : ''}`} style={{ paddingLeft: 16, paddingRight: 16 }}>{c}</div>)}
+            <div className="tbl tbl-dense" style={{ gridTemplateColumns: `repeat(${COLS.length}, minmax(max-content, 1fr))` }}>
+              {COLS.map((c, i) => <div key={c} className={`tbl-h ${i === 0 ? 'sticky' : 'end'}`}>{c}</div>)}
               {shown.map((p) => {
                 const price = prices[priceKey(p)]
                 const o = outcomeOf(p, price, nowTs)
@@ -204,7 +204,7 @@ export default function Dashboard() {
                 const live = spotOf(p.symbol)
                 return (
                   <ul className="tbl-row" key={p.address.toBase58()}>
-                    <li className="tbl-c sticky" style={{ paddingLeft: 16 }}>
+                    <li className="tbl-c sticky">
                       <div className="asset"><img src={iconFor(p.symbol)} alt="" /><div className="asset-id"><b>{p.symbol}</b><small><a href={explorerAddr(p.address.toBase58())} target="_blank" rel="noopener noreferrer">{shortAddr(p.address.toBase58())}</a></small></div></div>
                     </li>
                     <li className="tbl-c end"><div className="chain"><img src="/icons/solana.svg" alt="" /><span>Solana</span></div></li>
@@ -230,14 +230,14 @@ export default function Dashboard() {
               })}
             </div>
             {shown.length === 0 && (
-              <div className="term-empty">~/dashboard/{tab}: {viewing ? (loading ? 'loading from devnet…' : tab === 'history' ? 'no settled positions' : 'no open positions') : who}</div>
+              <div className="empty">{viewing ? (loading ? 'Loading from devnet…' : tab === 'history' ? 'No settled positions' : 'No open positions') : who}</div>
             )}
           </div>
         )}
         {settled.length > 0 && tab === 'history' && (
           <div className="dash-note">Settled positions keep their account on chain; the vault rent was refunded to the market maker.</div>
         )}
-      </Terminal>
+      </Panel>
     </section>
   )
 }

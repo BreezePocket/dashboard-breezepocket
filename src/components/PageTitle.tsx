@@ -1,7 +1,3 @@
 export default function PageTitle({ children }: { children: string }) {
-  return (
-    <div className="page-title">
-      <span>{children}</span>
-    </div>
-  )
+  return <h1 className="page-title">{children}</h1>
 }

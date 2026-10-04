@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import PageTitle from '../components/PageTitle'
-import Terminal from '../components/Terminal'
+import Panel from '../components/Panel'
 import Tabs from '../components/Tabs'
 import { SearchIcon } from '../components/Icons'
 import { fetchAllPositions, notionalUsd, type PositionRow } from '../lib/program'
@@ -52,24 +52,22 @@ export default function Leaderboard() {
   const rows = useMemo(() => rank(positions ?? [], tab), [positions, tab])
   const shown = rows.filter((r) => r.addr.toLowerCase().includes(q.trim().toLowerCase()))
   const empty = positions === null
-    ? error ? `could not read positions from chain: ${error}` : 'reading positions from chain…'
-    : rows.length === 0 ? 'no positions opened yet'
-    : shown.length === 0 ? `no users match "${q}"` : null
+    ? error ? `Could not read positions from chain: ${error}` : 'Reading positions from chain…'
+    : rows.length === 0 ? 'No positions opened yet'
+    : shown.length === 0 ? `No users match "${q}"` : null
 
   return (
     <section className="page">
       <PageTitle>Leaderboard</PageTitle>
-      <Terminal title={`~/leaderboard/${tab}`}>
-        <div className="strip">
-          <div className="strip-track search">
-            <SearchIcon />
-            <input placeholder="Search for user" value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
-        </div>
+      <Panel>
+        <label className="search-field">
+          <SearchIcon />
+          <input type="search" placeholder="Search for user" aria-label="Search for user" value={q} onChange={(e) => setQ(e.target.value)} />
+        </label>
         <Tabs items={TABS} active={tab} onChange={setTab} />
         <div className="tbl-wrap">
           <div className="tbl" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
-            <div className="tbl-h bold">Rank</div>
+            <div className="tbl-h">Rank</div>
             <div className="tbl-h">User</div>
             <div className="tbl-h end">Positions</div>
             <div className="tbl-h end">Volume</div>
@@ -82,9 +80,9 @@ export default function Leaderboard() {
               </ul>
             ))}
           </div>
-          {empty && <div className="term-empty">~/leaderboard/{tab}: {empty}</div>}
+          {empty && <div className="empty">{empty}</div>}
         </div>
-      </Terminal>
+      </Panel>
     </section>
   )
 }

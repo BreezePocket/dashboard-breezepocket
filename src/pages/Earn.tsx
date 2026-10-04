@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageTitle from '../components/PageTitle'
-import Terminal from '../components/Terminal'
+import Panel from '../components/Panel'
 import Dropdown from '../components/Dropdown'
 import { FilterIcon, Chevron } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
@@ -125,12 +125,12 @@ export default function Earn() {
 
   return (
     <section className="page">
-      <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title="~/assets" tabs={{ items: TABS, active: tab, onChange: (id) => setTab(id as Tab) }}>
-        <div className="strip">
-          <div className="strip-track">
+      <PageTitle>Get paid while you wait</PageTitle>
+      <Panel label="Strategy" tabs={{ items: TABS, active: tab, onChange: (id) => setTab(id as Tab) }}>
+        <div className="cap">
+          <span className="cap-label">{capLabel}</span>
+          <div className="cap-track" role="progressbar" aria-label="Market-maker capacity used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(cap)}>
             <div className="cap-fill" style={{ width: `${cap}%` }} />
-            <span className="cap-label">{capLabel}</span>
           </div>
         </div>
         <div className="filter-bar">
@@ -224,9 +224,8 @@ export default function Earn() {
               }),
             ])}
           </div>
-          {rows.length === 0 && <div className="term-empty">~/assets: no markets match this filter</div>}
         </div>
-      </Terminal>
+      </Panel>
     </section>
   )
 }

@@ -1,5 +1,5 @@
 import PageTitle from '../components/PageTitle'
-import Terminal from '../components/Terminal'
+import Panel from '../components/Panel'
 import { Mark } from '../components/Logo'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { shortAddr } from '../components/WalletButton'
@@ -8,12 +8,12 @@ const COLS = ['Period', 'Rank', 'Tier', 'Total points', 'Activity points', 'Refe
 
 export default function Points() {
   const { publicKey } = useWallet()
-  const who = publicKey ? `${shortAddr(publicKey.toBase58())}: no history yet` : 'wallet not connected'
+  const who = publicKey ? `${shortAddr(publicKey.toBase58())}: no history yet` : 'Wallet not connected'
   return (
     <section className="page">
       <PageTitle>Points</PageTitle>
       <div className="grid-12">
-        <Terminal title="~/points" className="span-6">
+        <Panel title="Points" className="span-6">
           <div className="pt-body">
             <div className="pt-main">
               <span className="pt-big">0.00</span>
@@ -24,8 +24,8 @@ export default function Points() {
               <span className="pt-badge" aria-hidden="true"><Mark id="pt-mark-badge" /></span>
             </div>
           </div>
-        </Terminal>
-        <Terminal title="~/points/referral" className="span-6">
+        </Panel>
+        <Panel title="Referral" className="span-6">
           <div className="pt-body">
             <div className="pt-main">
               <span>Open one position to unlock your referral code</span>
@@ -38,20 +38,20 @@ export default function Points() {
               <div className="pt-stat"><span>0</span><small>Users referred</small></div>
             </div>
           </div>
-        </Terminal>
-        <Terminal title="~/points/history" className="span-12">
+        </Panel>
+        <Panel title="History" className="span-12">
           <div className="pt-learn">
             <a className="link-u" href="#">Learn more about PAYtience Points.</a>
           </div>
           <div className="tbl-wrap">
             <div className="tbl" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
               {COLS.map((c, i) => (
-                <div key={c} className={`tbl-h ${i === 0 ? 'bold' : 'end'}`}>{c}</div>
+                <div key={c} className={`tbl-h ${i === 0 ? '' : 'end'}`}>{c}</div>
               ))}
             </div>
-            <div className="term-empty">~/points/history: {who}</div>
+            <div className="empty">{who}</div>
           </div>
-        </Terminal>
+        </Panel>
       </div>
     </section>
   )

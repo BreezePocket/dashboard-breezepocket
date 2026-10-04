@@ -5,7 +5,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { PublicKey, Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import PageTitle from '../components/PageTitle'
-import Terminal, { type TermTabs } from '../components/Terminal'
+import Panel, { type PanelTabs } from '../components/Panel'
 import Dropdown from '../components/Dropdown'
 import { BackIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
@@ -20,8 +20,7 @@ import { explorerAddr, explorerTx } from '../lib/config'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const ordinal = (n: number) => n + (['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th')
-const expiryShort = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]}_${d.getUTCDate()}` }
-// The hour comes from the expiry itself: Deribit (SOL) settles at 08:00 UTC, US listed options at the 20:00 UTC close.
+const expiryShort = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}` }
 const expiryLong = (ts: number) => { const d = new Date(ts * 1000); return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()}` }
 // Quote source as shown to users: the desk's internal `_synthetic` tag is dropped.
 const sourceLabel = (src: string) => src.replace(/_synthetic$/, '')
@@ -32,7 +31,7 @@ const TYPES: { id: OptionType; label: string }[] = [
 ]
 
 /** The terminal's strategy tabs for one asset; a strategy the asset has no market for cannot be picked. */
-function useStrategyTabs(asset: string, type: OptionType): TermTabs {
+function useStrategyTabs(asset: string, type: OptionType): PanelTabs {
   const navigate = useNavigate()
   return {
     items: TYPES.map((t) => ({ ...t, disabled: marketsFor(asset, t.id).length === 0 })),
@@ -121,8 +120,8 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
   const tabs = useStrategyTabs(asset, type)
   return (
     <section className="page">
-      <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}`} tabs={tabs}>
+      <PageTitle>Get paid while you wait</PageTitle>
+      <Panel label="Strategy" tabs={tabs}>
         <div className="ed-head">
           <HeaderChips asset={asset} type={type} />
         </div>
@@ -139,7 +138,7 @@ function ComingSoon({ asset, type }: { asset: string; type: OptionType }) {
             </div>
           </div>
         </div>
-      </Terminal>
+      </Panel>
     </section>
   )
 }
@@ -327,15 +326,15 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
 
   return (
     <section className="page">
-      <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
+      <PageTitle>Get paid while you wait</PageTitle>
+      <Panel label="Strategy" tabs={tabs}>
         <div className="ed-head">
           <HeaderChips asset={asset} type={type} />
           <SpotPrice asset={asset} spot={spot} />
           <div className="ed-head-group">
             <div className="gauge has-tip" data-tip={`${capPct.toFixed(0)}% filled`}>
-              <div className="gauge-arc" style={{ ['--deg' as string]: `${(capPct / 100) * 180}deg` }} />
               <small>{capPct.toFixed(0)}% of cap</small>
+              <div className="gauge-bar"><i style={{ width: `${capPct}%` }} /></div>
             </div>
           </div>
         </div>
@@ -361,16 +360,16 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
                   />
                 </span>
               ) : '…'}
-              {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
+              {expiryTs && <> <span className="nowrap">(in {Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)</span></>}
             </span>
           </div>
 
           <ul className="strikes">
             {cells.map((c) => (
               <li key={c.fixed_price} className={`strike ${strike === c.fixed_price ? 'is-selected' : ''}`} data-tone={tone(c.apr_pct)}>
-                <small className="strike-tag"><span>APR</span><span>{c.apr_pct.toFixed(2)}%</span></small>
-                <button type="button" className="strike-btn" disabled={busy} onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
+                <button type="button" className="strike-btn" aria-pressed={strike === c.fixed_price} disabled={busy} onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
                   <strong>{fmtPrice(c.fixed_price)}</strong>
+                  <span className="strike-apr">APR {c.apr_pct.toFixed(2)}%</span>
                 </button>
               </li>
             ))}
@@ -379,7 +378,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
 
           <div className="amount">
             <div className="amount-left">
-              <small className="amount-max" onClick={() => balance !== null && setAmount(String(Math.max(0, product === 'sell_sol' ? (isSol ? Math.floor((balance - 0.01) * 1e4) / 1e4 : Math.floor(balance * 1e6) / 1e6) : Math.floor(balance * 100) / 100)))}>MAX</small>
+              <button type="button" className="amount-max" disabled={busy} onClick={() => balance !== null && setAmount(String(Math.max(0, product === 'sell_sol' ? (isSol ? Math.floor((balance - 0.01) * 1e4) / 1e4 : Math.floor(balance * 1e6) / 1e6) : Math.floor(balance * 100) / 100)))}>MAX</button>
               <div className="amount-steps">
                 <button type="button" onClick={() => setAmount((a) => String(+((parseFloat(a) || 0) + step).toFixed(sellDigits)))} aria-label="Increase">+</button>
                 <button type="button" onClick={() => setAmount((a) => String(Math.max(0, +((parseFloat(a) || 0) - step).toFixed(sellDigits))))} aria-label="Decrease">-</button>
@@ -480,7 +479,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
             )}
           </div>
         </div>
-      </Terminal>
+      </Panel>
     </section>
   )
 }
@@ -556,8 +555,8 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
 
   return (
     <section className="page">
-      <PageTitle>Earn yield upfront</PageTitle>
-      <Terminal title={`~/earn/${asset}/${collateral}/${label}`} tabs={tabs}>
+      <PageTitle>Get paid while you wait</PageTitle>
+      <Panel label="Strategy" tabs={tabs}>
         <div className="ed-head">
           <HeaderChips asset={asset} type={type} />
           <SpotPrice asset={asset} spot={spot} />
@@ -588,16 +587,16 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
                   />
                 </span>
               ) : '…'}
-              {expiryTs && ` (in ${Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)`}
+              {expiryTs && <> <span className="nowrap">(in {Math.max(1, Math.ceil((expiryTs * 1000 - now) / 86_400_000))} days)</span></>}
             </span>
           </div>
 
           <ul className="strikes">
             {cells.map((c) => (
               <li key={c.fixed_price} className={`strike ${strike === c.fixed_price ? 'is-selected' : ''}`} data-tone={tone(c.apr_pct)}>
-                <small className="strike-tag"><span>APR</span><span>{c.apr_pct.toFixed(2)}%</span></small>
-                <button type="button" className="strike-btn" onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
+                <button type="button" className="strike-btn" aria-pressed={strike === c.fixed_price} onClick={() => setStrike(c.fixed_price)} title={c.instrument ?? sourceLabel(c.price_source)}>
                   <strong>{fmtPrice(c.fixed_price)}</strong>
+                  <span className="strike-apr">APR {c.apr_pct.toFixed(2)}%</span>
                 </button>
               </li>
             ))}
@@ -651,7 +650,7 @@ function QuoteOnlyMarket({ asset, type, expiryParam }: { asset: string; type: Op
             </button>
           </div>
         </div>
-      </Terminal>
+      </Panel>
     </section>
   )
 }
