@@ -243,9 +243,14 @@ export async function buildSettleTx(connection: Connection, caller: PublicKey, u
 const USER_OFFSET = 8 // account discriminator
 
 /** SOL and listed-asset positions for a user, soonest expiry first. */
-export async function fetchPositionsForUser(connection: Connection, user: PublicKey): Promise<PositionRow[]> {
+export const fetchPositionsForUser = (connection: Connection, user: PublicKey) => fetchPositions(connection, user)
+
+/** Every position the program holds, open and settled: settling pays out but keeps the account. */
+export const fetchAllPositions = (connection: Connection) => fetchPositions(connection)
+
+async function fetchPositions(connection: Connection, user?: PublicKey): Promise<PositionRow[]> {
   const program = getProgram(connection)
-  const filter = [{ memcmp: { offset: USER_OFFSET, bytes: user.toBase58() } }]
+  const filter = user ? [{ memcmp: { offset: USER_OFFSET, bytes: user.toBase58() } }] : []
   const [sol, assets, listed] = await Promise.all([
     program.account.positionAccount.all(filter),
     program.account.assetPosition.all(filter),
@@ -300,6 +305,10 @@ export const exchangeHappens = (product: Product, settlement: bigint, fixed: big
 
 /** Settlement prices are per asset and expiry; this is the key usePositions stores them under. */
 export const priceKey = (p: Pick<PositionRow, 'assetMint' | 'expiryTs'>) => `${p.assetMint?.toBase58() ?? 'SOL'}:${p.expiryTs}`
+
+/** A position's size in USD at its fixed price: the asset leg for Sell High, the USDC leg for Buy Low. */
+export const notionalUsd = (p: Pick<PositionRow, 'product' | 'userCollateral' | 'decimals' | 'fixedPrice'>) =>
+  p.product === 'sell_sol' ? (Number(p.userCollateral) / 10 ** p.decimals) * (Number(p.fixedPrice) / 1e6) : Number(p.userCollateral) / 1e6
 
 /** Human-readable conversions. */
 export const toUnits = (n: bigint, decimals: number) => Number(n) / 10 ** decimals

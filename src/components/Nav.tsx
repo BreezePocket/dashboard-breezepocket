@@ -7,7 +7,6 @@ import { isBackend, type DeskHealth } from '../lib/mm'
 const LINKS = [
   { to: '/', label: 'Earn' },
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/points', label: 'Points' },
   { to: '/leaderboard', label: 'Leaderboard' },
 ]
 

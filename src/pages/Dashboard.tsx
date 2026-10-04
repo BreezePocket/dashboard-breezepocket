@@ -9,7 +9,7 @@ import { useDesk } from '../components/DeskProvider'
 import { usePositions } from '../hooks/usePositions'
 import { shortAddr } from '../components/WalletButton'
 import { iconFor, fmtNum, fmtPrice } from '../data/markets'
-import { DISPUTE_WINDOW_SECS, baseToUsdc, buildSettleTx, exchangeHappens, fetchConfig, lamportsToSol, priceKey, toUnits, type PositionRow, type SettlementPriceRow } from '../lib/program'
+import { DISPUTE_WINDOW_SECS, baseToUsdc, buildSettleTx, exchangeHappens, fetchConfig, lamportsToSol, notionalUsd, priceKey, toUnits, type PositionRow, type SettlementPriceRow } from '../lib/program'
 import { explorerAddr } from '../lib/config'
 
 type Tab = 'positions' | 'total' | 'history'
@@ -21,7 +21,6 @@ const TABS = [
 const COLS = ['Asset', 'Chain', 'Type', 'Maturity', 'Size', 'Notional', 'Strike', 'Yield', 'Income', 'Current Price', 'Target', 'Outcome']
 
 const dateShort = (ts: number) => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-const notionalUsd = (p: PositionRow) => (p.product === 'sell_sol' ? toUnits(p.userCollateral, p.decimals) * (Number(p.fixedPrice) / 1e6) : baseToUsdc(p.userCollateral))
 /** Sell positions lock the asset (SOL or a listed token); buy positions lock USDC. */
 const legSymbol = (p: PositionRow) => (p.product === 'sell_sol' ? p.symbol : 'USDC')
 const legAmount = (p: PositionRow, n: bigint) => (p.product === 'sell_sol' ? toUnits(n, p.decimals) : baseToUsdc(n))
