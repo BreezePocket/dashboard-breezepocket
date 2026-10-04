@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { useWallet } from '../lib/wallet'
+import { useConnection } from '../lib/connection'
 import { PublicKey } from '@solana/web3.js'
 import PageTitle from '../components/PageTitle'
 import Panel from '../components/Panel'
@@ -80,7 +81,7 @@ export default function Dashboard() {
   const open = positions.filter((p) => !p.settled)
   const settled = positions.filter((p) => p.settled)
   const shown = tab === 'history' ? settled : open
-  const who = viewing ? `${shortAddr(viewing.toBase58())}${readOnly ? ' (read-only)' : ''}` : 'Wallet not connected'
+  const who = viewing ? `${shortAddr(viewing.toBase58())}${readOnly ? ' (read-only)' : ''}` : 'Not logged in'
 
   const totals = useMemo(() => {
     // Yield and locked amounts in other listed assets are kept per symbol.
@@ -109,7 +110,7 @@ export default function Dashboard() {
   const maxBar = Math.max(1, ...byExpiry.map(([, v]) => v))
 
   const settle = async (p: PositionRow) => {
-    if (!publicKey) { setMsg('Connect a wallet to pay the settlement fee.'); return }
+    if (!publicKey) { setMsg('Log in to pay the settlement fee.'); return }
     setSettling(p.address.toBase58())
     setMsg(null)
     try {
@@ -169,7 +170,7 @@ export default function Dashboard() {
         <Tabs items={TABS} active={tab} onChange={setTab} />
         {!viewing && (
           <div className="dash-lookup">
-            <span>Connect a wallet, or view any address read-only:</span>
+            <span>Log in, or view any address read-only:</span>
             <form onSubmit={(e) => { e.preventDefault(); if (addrInput.trim()) navigate(`/dashboard?as=${addrInput.trim()}`) }}>
               <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} placeholder="Solana address" spellCheck={false} />
               <button type="submit" className="btn" style={{ height: 36 }}>View</button>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { useWallet } from '../lib/wallet'
+import { useConnection } from '../lib/connection'
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { ata, fetchConfig } from '../lib/program'
 
@@ -7,7 +8,7 @@ import { ata, fetchConfig } from '../lib/program'
 export type Balances = { sol: number | null; usdc: number | null; asset: number | null; usdcMint: PublicKey | null }
 
 /**
- * SOL and test-USDC balances for an owner (defaults to the connected wallet), plus a
+ * SOL and test-USDC balances for an owner (defaults to the logged-in wallet), plus a
  * listed asset's token balance when `assetMint` is given, refreshed every 15s.
  */
 export function useBalances(owner?: PublicKey | null, assetMint?: PublicKey | null) {

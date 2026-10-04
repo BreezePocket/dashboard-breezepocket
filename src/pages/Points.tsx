@@ -1,14 +1,14 @@
 import PageTitle from '../components/PageTitle'
 import Panel from '../components/Panel'
 import { Mark } from '../components/Logo'
-import { useWallet } from '@solana/wallet-adapter-react'
+import { useWallet } from '../lib/wallet'
 import { shortAddr } from '../components/WalletButton'
 
 const COLS = ['Period', 'Rank', 'Tier', 'Total points', 'Activity points', 'Referral points']
 
 export default function Points() {
   const { publicKey } = useWallet()
-  const who = publicKey ? `${shortAddr(publicKey.toBase58())}: no history yet` : 'Wallet not connected'
+  const who = publicKey ? `${shortAddr(publicKey.toBase58())}: no history yet` : 'Not logged in'
   return (
     <section className="page">
       <PageTitle>Points</PageTitle>

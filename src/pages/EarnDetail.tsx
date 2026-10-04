@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { PublicKey, Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import PageTitle from '../components/PageTitle'
@@ -9,6 +7,8 @@ import Panel, { type PanelTabs } from '../components/Panel'
 import Dropdown from '../components/Dropdown'
 import { BackIcon } from '../components/Icons'
 import { useDesk } from '../components/DeskProvider'
+import { useWallet } from '../lib/wallet'
+import { useConnection } from '../lib/connection'
 import { useBalances } from '../hooks/useBalances'
 import { CHAINS, SOLANA, iconFor, assetName, assetsFor, findMarket, marketsFor, marketHref, fmtPrice, fmtNum, type OptionType } from '../data/markets'
 import {
@@ -160,8 +160,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   const { client, health, status } = useDesk()
   const desk = health?.assets?.find((a) => a.asset === asset) ?? null
   const { connection } = useConnection()
-  const { publicKey, connected, signTransaction } = useWallet()
-  const { setVisible } = useWalletModal()
+  const { publicKey, connected, signTransaction, login, wallet } = useWallet()
   const balances = useBalances(undefined, assetMint)
 
   const [expiries, setExpiries] = useState<DeskExpiry[]>([])
@@ -271,9 +270,8 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   const capPct = health && health.exposure.capPerExpiryUsd > 0 ? Math.min(100, (capUsed / health.exposure.capPerExpiryUsd) * 100) : 0
 
   const submit = async () => {
-    if (!connected || !publicKey) { setVisible(true); return }
+    if (!connected || !publicKey) { login(); return }
     if (!client || !health) return
-    if (!signTransaction) { setFlow({ step: 'error', message: 'This wallet cannot sign transactions.' }); return }
     if (flow.step !== 'quoted') return
     const q = flow
     try {
@@ -309,7 +307,7 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
   // Selling a listed asset needs its test token; everything else needs test USDC.
   const faucetToken = product === 'sell_sol' && !isSol ? asset : 'USDC'
   const claimFaucet = async () => {
-    if (!client || !publicKey) { setVisible(true); return }
+    if (!client || !publicKey) { login(); return }
     setFaucetMsg(`Minting test ${faucetToken}…`)
     try {
       const r = await client.faucet(publicKey.toBase58(), faucetToken === 'USDC' ? undefined : faucetToken)
@@ -466,11 +464,11 @@ function LiveMarket({ asset, mint, decimals, type, expiryParam }: { asset: strin
               >
                 {status !== 'online' ? 'Market makers offline'
                   : strike === null ? 'Select price'
-                  : !connected ? 'Connect wallet to continue'
+                  : !connected ? 'Log in to continue'
                   : insufficient ? 'Insufficient balance'
                   : flow.step === 'quoting' ? 'Getting quote…'
                   : flow.step === 'declined' ? 'Quote declined'
-                  : flow.step === 'signing' ? 'Sign in your wallet…'
+                  : flow.step === 'signing' ? (wallet?.embedded ? 'Signing…' : 'Approve in your wallet…')
                   : flow.step === 'cosigning' ? 'Market maker co-signing…'
                   : flow.step === 'broadcasting' ? 'Broadcasting…'
                   : flow.step === 'confirming' ? 'Confirming on devnet…'

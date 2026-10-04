@@ -200,6 +200,34 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .connect-chain { display: flex; }
 .connect-chain img { width: 24px; height: 24px; border-radius: 50%; }
 .connect.is-connected .connect-label { font-family: var(--mono); font-size: 13px; letter-spacing: 0; text-transform: none; }
+.connect:disabled { cursor: default; opacity: 0.7; }
+.connect:disabled:hover { background: var(--primary); color: var(--on-primary); }
+/* The account menu hangs from the right edge of the button, so it never runs off the page. */
+.connect-wrap { position: relative; flex: none; }
+.connect-menu { left: auto; right: 0; min-width: 220px; }
+.connect-menu a {
+  display: flex;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.connect-menu a:hover { background: var(--surface-2); }
+.connect-who {
+  margin: 0 0 4px;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
 .theme-toggle {
   display: flex;
   align-items: center;
@@ -950,31 +978,6 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .logo-light .logo-word b { color: #fff; }
 .logo-stacked { flex-direction: column; gap: calc(var(--logo-size) * 0.3); }
 
-/* ---------- Solana wallet modal (theme overrides) ---------- */
-.wallet-adapter-modal, .wallet-adapter-modal * { transition: none !important; }
-.wallet-adapter-modal-wrapper {
-  background: var(--surface) !important;
-  color: var(--ink) !important;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg) !important;
-  box-shadow: var(--pop) !important;
-  font-family: var(--sans) !important;
-}
-.wallet-adapter-modal-title { color: var(--ink) !important; font-family: var(--sans) !important; font-weight: 500 !important; font-size: 24px !important; letter-spacing: -0.02em; }
-.wallet-adapter-modal-list .wallet-adapter-button {
-  font-family: var(--sans) !important;
-  color: var(--ink) !important;
-  border-radius: var(--r-md) !important;
-}
-.wallet-adapter-modal-list .wallet-adapter-button:hover { background: var(--surface-2) !important; }
-.wallet-adapter-modal-list-more { color: var(--ink-2) !important; font-family: var(--sans) !important; }
-.wallet-adapter-modal-list-more svg { fill: var(--ink-2) !important; }
-.wallet-adapter-modal-middle { color: var(--ink) !important; }
-.wallet-adapter-modal-middle-button { background: var(--primary) !important; color: var(--on-primary) !important; border-radius: var(--r-pill) !important; font-family: var(--sans) !important; }
-.wallet-adapter-modal-button-close { background: var(--surface-3) !important; }
-.wallet-adapter-modal-button-close svg { fill: var(--ink) !important; }
-.wallet-adapter-modal-overlay { background: var(--scrim) !important; }
-
 /* ---------- Vaults ---------- */
 .vaults { max-width: 1270px; margin: 24px auto 0; color: #f6f6f6; display: flex; flex-direction: column; gap: 32px; }
 .vbanner {
@@ -1202,30 +1205,3 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 :root[data-theme="vault"] .footer, :root[data-theme="dark"] .footer { border-top: 1px solid var(--line); }
 /* The toggle does nothing on a page that is always dark. */
 :root[data-theme="vault"] .theme-toggle { display: none; }
-
-:root[data-theme="vault"] .wallet-adapter-modal-wrapper {
-  background: #1a1a1a !important;
-  color: #f6f6f6 !important;
-  border: 0.5px solid #2c2c2c;
-  border-radius: 14px !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6) !important;
-  font-family: var(--sans) !important;
-}
-:root[data-theme="vault"] .wallet-adapter-modal-title { color: #f6f6f6 !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-list .wallet-adapter-button {
-  color: #f6f6f6 !important;
-  font-family: var(--sans) !important;
-  border-radius: 10px !important;
-}
-:root[data-theme="vault"] .wallet-adapter-modal-list .wallet-adapter-button:hover { background: #232323 !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-list-more { color: #dadada !important; font-family: var(--sans) !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-list-more svg { fill: #dadada !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-middle { color: #dadada !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-middle-button {
-  background: #5263fa !important;
-  color: #f6f6f6 !important;
-  border-radius: 10px !important;
-  font-family: var(--sans) !important;
-}
-:root[data-theme="vault"] .wallet-adapter-modal-button-close { background: #232323 !important; }
-:root[data-theme="vault"] .wallet-adapter-modal-button-close svg { fill: #dadada !important; }

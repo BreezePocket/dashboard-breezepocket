@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
+import { useWallet } from '../lib/wallet'
 import { VAULT_DETAILS, vaultIcon } from '../data/vaults'
 import { iconFor } from '../data/markets'
 
@@ -32,8 +31,7 @@ const WarnIcon = () => (
 export default function VaultDetail() {
   const { id = '' } = useParams()
   const v = VAULT_DETAILS[id]
-  const { connected, publicKey } = useWallet()
-  const { setVisible } = useWalletModal()
+  const { connected, publicKey, login } = useWallet()
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit')
   const [amount, setAmount] = useState('')
   const [more, setMore] = useState(false)
@@ -182,7 +180,7 @@ export default function VaultDetail() {
                 {qty <= 0 ? `Enter ${mode} amount` : qty > balance ? 'Insufficient balance' : mode === 'deposit' ? 'Deposit' : 'Request Withdrawal'}
               </button>
             ) : (
-              <button type="button" className="vd-cta" onClick={() => setVisible(true)}>Connect Wallet</button>
+              <button type="button" className="vd-cta" onClick={login}>Log in</button>
             )}
             {connected && publicKey && <div className="vd-wallet">Connected: {short(publicKey.toBase58())}</div>}
             <div className="vd-warn">

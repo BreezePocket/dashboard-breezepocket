@@ -107,7 +107,7 @@ Then both sides of the trade lock **atomically** in one transaction, and the use
 - **Real-market pricing engine:** a Deribit surface built by log-moneyness and total-variance interpolation, Black-76 vol inversion for US equities, and forwards from put-call parity.
 - **Risk controls:** caps per position, per expiry and in total, calculated from on-chain exposure plus recently signed quotes, with staleness guards on every price feed.
 - **24 assets listed on devnet.** The desk quotes all of them live.
-- **Frontend:** Vite, React, TypeScript and the Solana wallet adapter (Phantom, Solflare, Backpack). Positions are read directly from chain with the Anchor IDL.
+- **Frontend:** Vite, React and TypeScript, with [Privy](https://privy.io) for login and wallets: Google, a phone number, or your own Solana wallet (Phantom, Solflare, Backpack). Positions are read directly from chain with the Anchor IDL.
 
 ## Status
 
@@ -130,7 +130,7 @@ Then both sides of the trade lock **atomically** in one transaction, and the use
 
 ## Try it
 
-1. Open https://app.paytience.app and connect a Solana wallet set to **devnet**.
+1. Open https://app.paytience.app and log in with Google or a phone number. A wallet is made for your account, and the mobile app gives you the same one. You can also log in with your own Solana wallet, set to **devnet**.
 2. Click **Get test USDC + SOL** on the Earn page.
 3. Choose **Sell High** or **Buy Low** on SOL, pick an expiry and a target price, enter an amount and sign.
 4. Your yield arrives immediately. The position appears on **Dashboard**, where it can be settled after expiry.
@@ -156,6 +156,15 @@ npm run dev          # http://localhost:5173
 
 The RPC defaults to public devnet. Set `VITE_SOLANA_RPC` / `VITE_SOLANA_WS` in `.env` for a keyed endpoint.
 
+### Login and wallets
+
+Login goes through Privy (`src/components/WalletProvider.tsx`). The rest of the app reads one `publicKey` and one `signTransaction` from `useWallet()` in `src/lib/wallet.ts`, whichever way the visitor logged in:
+
+- **Google or SMS:** Privy makes a Solana wallet for the account on first login. It signs without a second prompt, because the app's own confirm step already shows the whole deal. The account menu can export its key.
+- **Your own wallet:** Phantom, Solflare, Backpack or any wallet the browser detects, connected through Privy's login window.
+
+The Privy App ID is public and ships with the site; set `VITE_PRIVY_APP_ID` to use another app. The app **secret** is for servers only and must never be put in this repo or its `.env`. In the Privy dashboard, the app needs Google, SMS and Solana wallets turned on as login methods, and the site's addresses (`https://app.paytience.app`, `http://localhost:5173`) under allowed domains.
+
 ### Run the backend and a desk
 
 The app talks to the PAYtience backend (production: https://api.paytience.app). Each market-maker desk connects outbound to the backend over WebSockets. The backend sends every quote request to all connected desks, returns the best quote, merges their yield boards, and routes co-signing to the desk that won.
@@ -166,7 +175,7 @@ PAYtience app ──REST──▶ backend (:8080) ◀──WebSocket── marke
 
 ```bash
 cd ../backend-paytience
-cargo run --release                              # REST + WebSockets on :8080 (needs USDC_MINT, MM_ALLOWLIST)
+cargo run --release                              # REST + WebSockets on :8080 (needs USDC_MINT; desks register and an admin approves them)
 cd ../MM-system-breezepocket
 AGGREGATOR_URL=ws://127.0.0.1:8080 npm start     # desk dials the backend; its own REST stays on :8787
 ```

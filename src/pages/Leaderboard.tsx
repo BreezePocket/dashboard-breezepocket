@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { useWallet } from '../lib/wallet'
+import { useConnection } from '../lib/connection'
 import PageTitle from '../components/PageTitle'
 import Panel from '../components/Panel'
 import Tabs from '../components/Tabs'
