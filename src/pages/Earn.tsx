@@ -115,22 +115,38 @@ export default function Earn() {
   // The cap bar is the desk's real aggregate exposure against its hard notional cap; the
   // backend sums both over every market maker online (all zero when none is).
   const cap = health && health.exposure.capTotalUsd > 0 ? Math.min(100, (health.exposure.totalUsd / health.exposure.capTotalUsd) * 100) : 0
-  const capLabel = !health
-    ? status === 'offline' ? 'market-maker backend offline' : 'connecting…'
-    : !isBackend(health)
-      ? `${cap.toFixed(2)}% of desk cap used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet`
-      : !health.ok
-        ? 'no live quotes right now'
-        : `${cap.toFixed(2)}% of market-maker capacity used · $${health.exposure.totalUsd.toFixed(0)} of $${health.exposure.capTotalUsd.toLocaleString()} on devnet`
+  // Without live figures the row says why instead: offline, still connecting, or no quotes.
+  const capNote = !health
+    ? status === 'offline' ? 'Market-maker backend offline' : 'Connecting…'
+    : isBackend(health) && !health.ok ? 'No live quotes right now' : null
+  const usd = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+  const capText = capNote ?? (
+    <>
+      <b>{cap.toFixed(2)}%</b> {health && isBackend(health) ? 'of market-maker capacity used' : 'of desk cap used'}
+      <i>·</i>
+      <b>{usd(health!.exposure.totalUsd)}</b> of {usd(health!.exposure.capTotalUsd)}
+    </>
+  )
 
   return (
     <section className="page">
       <PageTitle>Get paid while you wait</PageTitle>
       <Panel label="Strategy" tabs={{ items: TABS, active: tab, onChange: (id) => setTab(id as Tab) }}>
+        {/* One bar with its reading inside. The text is drawn twice, dark on the track and
+            white on the fill, and the white copy is cut to the fill's width, so it stays
+            readable wherever the fill ends. */}
         <div className="cap">
-          <span className="cap-label">{capLabel}</span>
-          <div className="cap-track" role="progressbar" aria-label="Market-maker capacity used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(cap)}>
-            <div className="cap-fill" style={{ width: `${cap}%` }} />
+          <div
+            className="cap-track"
+            role="progressbar"
+            aria-label="Market-maker capacity used"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(cap)}
+            style={{ ['--cap' as string]: `${health && !capNote ? cap : 0}%` }}
+          >
+            <span className="cap-text">{capText}</span>
+            <span className="cap-text cap-fill" aria-hidden="true">{capText}</span>
           </div>
         </div>
         <div className="filter-bar">
