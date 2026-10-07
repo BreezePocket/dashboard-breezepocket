@@ -204,7 +204,9 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .connect:disabled:hover { background: var(--primary); color: var(--on-primary); }
 /* The account menu hangs from the right edge of the button, so it never runs off the page. */
 .connect-wrap { position: relative; flex: none; }
-.connect-menu { left: auto; right: 0; min-width: 220px; }
+/* Written with .chip-menu so it outranks that rule's own width: the menu is as wide as its
+   longest line and never scrolls sideways. */
+.chip-menu.connect-menu { left: auto; right: 0; width: max-content; min-width: 220px; max-width: min(320px, calc(100vw - 32px)); overflow-x: hidden; }
 .connect-menu a {
   display: flex;
   align-items: center;
@@ -226,7 +228,6 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 260px;
 }
 .theme-toggle {
   display: flex;
@@ -611,6 +612,35 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .btn-earn .back-icon { width: 20px; height: 20px; margin: 0 2px 0 6px; }
 .btn-earn.is-soon, .btn-earn.is-soon:hover { border-color: transparent; background: var(--surface-2); color: var(--ink-3); cursor: default; }
 .tbl-earn .btn-earn { width: 100%; }
+/* The Earn table always fits its panel. Columns are set here, the same for both tabs: the
+   asset and chain share what the fixed APR and action columns leave. Narrower screens
+   tighten them, then drop the chain, then reduce the action to its icon (the whole row
+   opens the market anyway). */
+.tbl-earn { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 125px 125px 352px; }
+.tbl-earn .tbl-c, .tbl-earn .tbl-h { min-width: 0; }
+.tbl-earn .asset, .tbl-earn .asset-id { min-width: 0; }
+.tbl-earn .asset-tick, .tbl-earn .asset-id small, .tbl-earn .chain span { overflow: hidden; text-overflow: ellipsis; }
+.tbl-earn .asset-tick b { overflow: hidden; text-overflow: ellipsis; }
+.tbl-earn .asset-tick > span { flex: none; }
+@media (max-width: 1080px) {
+  .tbl-earn { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 100px 100px 264px; }
+  .tbl-earn .btn-earn { min-width: 0; }
+}
+@media (max-width: 820px) {
+  .tbl-earn { grid-template-columns: minmax(0, 1fr) 92px 92px 248px; }
+  .tbl-earn > .tbl-h:nth-child(2), .tbl-earn .tbl-c:nth-child(2) { display: none; }
+  .tbl-earn .tbl-c, .tbl-earn .tbl-h, .tbl-earn .tbl-group { padding: 0 12px; }
+}
+@media (max-width: 640px) {
+  .tbl-earn { grid-template-columns: minmax(0, 1fr) 74px 70px 60px; }
+  .tbl-earn .tbl-c, .tbl-earn .tbl-h { padding: 0 6px; }
+  .tbl-earn .tbl-c:first-child, .tbl-earn > .tbl-h:first-child { padding-left: 12px; }
+  .tbl-earn .tbl-c:last-child { padding-right: 12px; }
+  .tbl-earn .asset { gap: 10px; }
+  .tbl-earn .asset img { width: 32px; height: 32px; }
+  .tbl-earn .apr { font-size: 14px; }
+  .tbl-earn .btn-earn { width: 44px; padding: 0; gap: 0; justify-content: center; font-size: 0; }
+}
 .btn {
   display: inline-flex;
   align-items: center;

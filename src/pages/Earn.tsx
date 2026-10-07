@@ -154,8 +154,9 @@ export default function Earn() {
           <Dropdown label="Group by" prefix="Group By: " options={GROUP_OPTIONS} value={groupBy} onChange={(id) => setGroupBy(id as GroupBy)} />
         </div>
         <div className="tbl-wrap">
-          {/* Fixed APR and action columns, so nothing shifts between the two tabs. */}
-          <div className="tbl tbl-earn" style={{ gridTemplateColumns: 'minmax(max-content, 1fr) minmax(max-content, 2fr) 125px 125px 352px' }}>
+          {/* Column widths live in the stylesheet (.tbl-earn): fixed APR and action columns, so
+              nothing shifts between the two tabs, narrowing with the screen so the table never scrolls sideways. */}
+          <div className="tbl tbl-earn">
             <div className="tbl-h sticky" role="columnheader">
               Asset
             </div>
