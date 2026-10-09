@@ -125,7 +125,7 @@ const solanaConnectors = toSolanaWalletConnectors()
 const solanaRpcs = { [SOLANA_CHAIN]: { rpc: createSolanaRpc(RPC_URL), rpcSubscriptions: createSolanaRpcSubscriptions(WS_URL) } }
 
 /** Privy's window takes the app's panel colour, so it reads as part of the page in every theme. */
-const WINDOW_COLOUR: Record<string, 'light' | `#${string}`> = { light: 'light', dark: '#06173f', vault: '#161616' }
+const WINDOW_COLOUR: Record<string, 'light' | `#${string}`> = { light: 'light', dark: '#121d17', vault: '#161616' }
 
 const watchTheme = (onChange: () => void) => {
   const observer = new MutationObserver(onChange)
@@ -154,7 +154,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       loginMethods: ['google', 'sms', 'wallet'],
       appearance: {
         theme: WINDOW_COLOUR[theme] ?? 'light',
-        accentColor: '#0b5cff',
+        accentColor: '#2f5640',
         // The mark from components/Logo as a file. It carries its own width and height: an
         // SVG with only a viewBox collapses to nothing in Privy's window.
         logo: '/icons/logo-mark.svg',

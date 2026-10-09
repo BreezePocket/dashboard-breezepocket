@@ -166,7 +166,7 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      <Panel>
+      <Panel title="Positions">
         <Tabs items={TABS} active={tab} onChange={setTab} />
         {!viewing && (
           <div className="dash-lookup">

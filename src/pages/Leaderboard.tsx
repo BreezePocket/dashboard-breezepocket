@@ -60,7 +60,7 @@ export default function Leaderboard() {
   return (
     <section className="page">
       <PageTitle>Leaderboard</PageTitle>
-      <Panel>
+      <Panel title="Rankings">
         <label className="search-field">
           <SearchIcon />
           <input type="search" placeholder="Search for user" aria-label="Search for user" value={q} onChange={(e) => setQ(e.target.value)} />

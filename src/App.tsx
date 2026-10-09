@@ -14,8 +14,8 @@ const TITLES: Record<string, string> = {
   '/leaderboard': 'PAYtience | Leaderboard',
 }
 
-/** The browser chrome on a phone takes the header's colour. */
-const THEME_COLOR = { light: '#ffffff', dark: '#06173f', vault: '#161616' }
+/** The browser chrome on a phone takes the colour of the frame around the page. */
+const THEME_COLOR = { light: '#2f4436', dark: '#1f3026', vault: '#161616' }
 
 export default function App() {
   const { pathname } = useLocation()
