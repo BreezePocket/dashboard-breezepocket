@@ -345,26 +345,29 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   color: var(--on-bar);
 }
 .panel-title { font-size: 15px; line-height: 20px; }
-.panel-tabs { display: flex; gap: 4px; min-width: 0; margin-left: -12px; }
+/* Tabs share the whole header equally, however many there are. */
+.panel-head:has(> .panel-tabs) { padding: 8px; }
+.panel-tabs { display: flex; flex: 1; gap: 8px; min-width: 0; }
 .panel-tab {
-  min-height: 36px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
   padding: 4px 14px;
   border-radius: var(--r-sm);
   font-size: 14px;
   line-height: 18px;
   font-weight: 500;
-  color: color-mix(in srgb, var(--on-bar) 65%, transparent);
+  background: color-mix(in srgb, var(--on-bar) 8%, transparent);
+  color: color-mix(in srgb, var(--on-bar) 75%, transparent);
 }
-.panel-tab:hover:not(:disabled):not(.is-active) { background: color-mix(in srgb, var(--on-bar) 10%, transparent); color: var(--on-bar); }
+.panel-tab:hover:not(:disabled):not(.is-active) { background: color-mix(in srgb, var(--on-bar) 16%, transparent); color: var(--on-bar); }
 .panel-tab.is-active { background: var(--on-bar); color: var(--bar); }
 .panel-tab:disabled { cursor: not-allowed; color: color-mix(in srgb, var(--on-bar) 30%, transparent); }
 .panel-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-/* On a phone the tabs split the width, so two long strategy names both stay in view. */
 @media (max-width: 640px) {
-  .panel-head { padding: 8px; }
-  .panel-tabs { flex: 1; margin-left: 0; }
-  .panel-title { padding-left: 8px; }
-  .panel-tab { flex: 1 1 0; padding: 4px 8px; font-size: 13px; line-height: 16px; }
+  .panel-head { padding: 8px 8px 8px 16px; }
+  .panel-tabs { gap: 6px; }
+  .panel-tab { padding: 4px 8px; font-size: 13px; line-height: 16px; }
 }
 .empty {
   flex: 1;
