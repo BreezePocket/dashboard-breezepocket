@@ -155,9 +155,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       appearance: {
         theme: WINDOW_COLOUR[theme] ?? 'light',
         accentColor: '#2f5640',
-        // The mark from components/Logo as a file. It carries its own width and height: an
-        // SVG with only a viewBox collapses to nothing in Privy's window.
-        logo: '/icons/logo-mark.svg',
+        logo: '/icons/logo-mark.png',
         landingHeader: 'Log in to PAYtience',
         showWalletLoginFirst: false,
         walletChainType: 'solana-only',

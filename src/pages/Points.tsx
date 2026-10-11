@@ -21,7 +21,7 @@ export default function Points() {
             </div>
             <div className="pt-foot">
               <div className="pt-stat"><span>-</span><small>Leaderboard rank</small></div>
-              <span className="pt-badge" aria-hidden="true"><Mark id="pt-mark-badge" /></span>
+              <span className="pt-badge" aria-hidden="true"><Mark /></span>
             </div>
           </div>
         </Panel>

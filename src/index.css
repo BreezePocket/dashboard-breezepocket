@@ -151,9 +151,9 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   margin: 0 auto;
   padding: 0 24px;
 }
-.nav-logo { display: flex; align-items: center; flex: none; margin-right: 16px; padding: 7px 12px; border-radius: var(--r-sm); background: var(--control); box-shadow: var(--drop); }
-.nav-logo .logo-mark { height: 24px; }
-.nav-logo .logo-word { font-size: 17px; }
+.nav-logo { display: flex; align-items: center; flex: none; margin-right: 16px; }
+.nav-logo .logo-mark { height: 30px; }
+.nav-logo .logo-word { font-size: 20px; }
 .nav-links { display: flex; align-items: center; flex: 1; min-width: 0; gap: 4px; }
 .nav-link {
   display: flex;
@@ -254,8 +254,8 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   .nav-inner { flex-wrap: wrap; gap: 0 8px; height: auto; padding: 0 16px; }
   .nav-inner { padding-top: 10px; }
   .nav-logo { margin-right: auto; }
-  .nav-logo .logo-mark { height: 22px; }
-  .nav-logo .logo-word { font-size: 15px; }
+  .nav-logo .logo-mark { height: 28px; }
+  .nav-logo .logo-word { font-size: 18px; }
   .nav-links { order: 3; flex: 1 0 100%; height: 48px; }
 }
 /* Narrower phones shed what they must, so the brand, theme toggle and wallet button all stay
@@ -265,9 +265,8 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   .connect-chain { display: none; }
 }
 @media (max-width: 380px) {
-  .nav-logo { padding: 7px 8px; }
-  .nav-logo .logo-mark { height: 20px; }
-  .nav-logo .logo-word { font-size: 13px; }
+  .nav-logo .logo-mark { height: 22px; }
+  .nav-logo .logo-word { font-size: 15px; }
 }
 @media (max-width: 360px) {
   .net-pill { display: none; }
@@ -1036,7 +1035,7 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .pt-stat span { font-weight: 700; }
 .pt-stat small { font-size: 12px; line-height: 18px; color: var(--ink-3); }
 .pt-badge { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); }
-.pt-badge svg { height: 18px; width: auto; }
+.pt-badge img { height: 18px; width: auto; }
 .pt-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .pt-learn { padding: 16px 24px 12px; font-size: 14px; }
 .link-u { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
